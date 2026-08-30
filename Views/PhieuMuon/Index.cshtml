@@ -1,0 +1,212 @@
+@using System.Data
+@model DataTable
+@{
+    ViewData["Title"] = "Quản Lý Mượn & Trả Sách";
+    bool isDocGia = ViewBag.IsDocGia == true;
+
+    // Nhóm dữ liệu theo Mã Phiếu Mượn (MaPM) để tránh hiển thị lặp lại dòng
+    var groupedPhieuMuon = new Dictionary<int, List<DataRow>>();
+    if (Model != null && Model.Rows.Count > 0)
+    {
+        foreach (DataRow row in Model.Rows)
+        {
+            int maPM = Convert.ToInt32(row["MaPM"]);
+            if (!groupedPhieuMuon.ContainsKey(maPM))
+            {
+                groupedPhieuMuon[maPM] = new List<DataRow>();
+            }
+            groupedPhieuMuon[maPM].Add(row);
+        }
+    }
+}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h2 class="fw-bold text-dark mb-1">
+            <i class="bi bi-journal-bookmark text-primary me-2"></i>@(isDocGia ? "Lịch Sử Mượn Sách Cá Nhân" : "Danh Sách Phiếu Mượn Toàn Thư Viện")
+        </h2>
+        <p class="text-muted mb-0">Theo dõi thông tin lưu thông mượn trả, hạn trả, gia hạn và xử lý phạt trễ hạn</p>
+    </div>
+    <div class="col-md-6 text-md-end mt-3 mt-md-0">
+        @if (!isDocGia)
+        {
+            <a asp-action="Create" class="btn btn-success shadow-sm">
+                <i class="bi bi-plus-circle me-1"></i> Lập Phiếu Mượn Mới (Thủ thư)
+            </a>
+        }
+    </div>
+</div>
+
+@if (groupedPhieuMuon.Count > 0)
+{
+    <div class="d-flex flex-column gap-3">
+        @foreach (var group in groupedPhieuMuon)
+        {
+            var firstRow = group.Value[0];
+            int maPM = group.Key;
+            var ngayMuonStr = firstRow.Table.Columns.Contains("NgayMuon") && firstRow["NgayMuon"] != DBNull.Value 
+                ? Convert.ToDateTime(firstRow["NgayMuon"]).ToString("dd/MM/yyyy") : "-";
+            var tenDocGia = firstRow.Table.Columns.Contains("TenDocGia") ? firstRow["TenDocGia"].ToString() : 
+                            firstRow.Table.Columns.Contains("HoTenDocGia") ? firstRow["HoTenDocGia"].ToString() : "Độc giả";
+            var tenNhanVien = firstRow.Table.Columns.Contains("TenNhanVien") ? firstRow["TenNhanVien"].ToString() : 
+                              firstRow.Table.Columns.Contains("HoTenNhanVien") ? firstRow["HoTenNhanVien"].ToString() : "Thủ thư";
+            var trangThaiPhieu = firstRow.Table.Columns.Contains("TrangThai") ? firstRow["TrangThai"].ToString() : 
+                                 firstRow.Table.Columns.Contains("TrangThaiPhieu") ? firstRow["TrangThaiPhieu"].ToString() : "Đang mượn";
+            
+            bool tatCaDaTra = group.Value.All(r => r.Table.Columns.Contains("NgayTra") && r["NgayTra"] != DBNull.Value);
+
+            <div class="card card-custom border bg-white overflow-hidden shadow-sm">
+                <!-- Header của Phiếu Mượn -->
+                <div class="card-header py-3 px-4 d-flex flex-wrap justify-content-between align-items-center bg-light border-bottom">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="badge bg-primary fs-6 px-3 py-2">Phiếu Mượn #@maPM</span>
+                        <div>
+                            @if (!isDocGia)
+                            {
+                                <strong class="text-dark me-2"><i class="bi bi-person me-1"></i>@tenDocGia</strong>
+                                <small class="text-muted border-start ps-2 me-2">Thủ thư: @tenNhanVien</small>
+                            }
+                            <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>Ngày lập: @ngayMuonStr</small>
+                        </div>
+                    </div>
+                    <div>
+                        @if (tatCaDaTra)
+                        {
+                            <span class="badge bg-success-subtle text-success border border-success px-3 py-1">
+                                <i class="bi bi-check-all me-1"></i>Đã trả toàn bộ
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning-subtle text-dark border border-warning px-3 py-1">
+                                <i class="bi bi-hourglass-split me-1"></i>Đang mượn (@group.Value.Count(r => r["NgayTra"] == DBNull.Value)/@group.Value.Count cuốn)
+                            </span>
+                        }
+                    </div>
+                </div>
+
+                <!-- Bảng Danh Sách Sách Trong Phiếu Mượn Này -->
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light small text-muted">
+                                <tr>
+                                    <th class="ps-4">Tên Sách Mượn</th>
+                                    <th class="text-center" style="width: 100px;">Số Lượng</th>
+                                    <th>Hạn Trả</th>
+                                    <th>Ngày Trả Thực Tế</th>
+                                    <th class="text-center" style="width: 110px;">Gia Hạn</th>
+                                    <th class="text-end" style="width: 130px;">Tiền Phạt</th>
+                                    <th class="text-center" style="width: 120px;">Trạng Thái</th>
+                                    @if (!isDocGia)
+                                    {
+                                        <th class="text-center" style="width: 150px;">Thao Tác</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in group.Value)
+                                {
+                                    var isDaTra = row.Table.Columns.Contains("NgayTra") && row["NgayTra"] != DBNull.Value;
+                                    var hanTra = row.Table.Columns.Contains("HanTra") && row["HanTra"] != DBNull.Value ? Convert.ToDateTime(row["HanTra"]) : (DateTime?)null;
+                                    var isQuaHan = !isDaTra && hanTra.HasValue && hanTra.Value.Date < DateTime.Now.Date;
+                                    var tienPhat = row.Table.Columns.Contains("TienPhat") && row["TienPhat"] != DBNull.Value ? Convert.ToDecimal(row["TienPhat"]) : 0;
+                                    var soLanGiaHan = row.Table.Columns.Contains("SoLanGiaHan") && row["SoLanGiaHan"] != DBNull.Value ? Convert.ToInt32(row["SoLanGiaHan"]) : 0;
+                                    int maSach = Convert.ToInt32(row["MaSach"]);
+
+                                    <tr class="@(isQuaHan ? "table-danger" : "")">
+                                        <td class="ps-4">
+                                            <div class="fw-bold text-dark">
+                                                <i class="bi bi-book me-1 text-primary"></i>@row["TenSach"]
+                                            </div>
+                                            <small class="text-muted">Mã sách: #@maSach</small>
+                                        </td>
+                                        <td class="text-center fw-bold">@row["SoLuong"]</td>
+                                        <td class="fw-bold @(isQuaHan ? "text-danger" : "text-dark")">
+                                            @(hanTra.HasValue ? hanTra.Value.ToString("dd/MM/yyyy") : "-")
+                                        </td>
+                                        <td>
+                                            @if (isDaTra)
+                                            {
+                                                <span class="text-success fw-semibold">
+                                                    <i class="bi bi-check-circle me-1"></i>@Convert.ToDateTime(row["NgayTra"]).ToString("dd/MM/yyyy")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning text-dark">Chưa trả</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge @(soLanGiaHan > 0 ? "bg-info text-dark" : "bg-light text-muted border")">@soLanGiaHan/1</span>
+                                        </td>
+                                        <td class="text-end fw-bold @(tienPhat > 0 ? "text-danger" : "text-muted")">
+                                            @(tienPhat > 0 ? tienPhat.ToString("N0") + " đ" : "0 đ")
+                                        </td>
+                                        <td class="text-center">
+                                            @if (isDaTra)
+                                            {
+                                                <span class="badge bg-success-subtle text-success">Đã trả</span>
+                                            }
+                                            else if (isQuaHan)
+                                            {
+                                                <span class="badge bg-danger">Quá hạn</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-primary-subtle text-primary">Đang mượn</span>
+                                            }
+                                        </td>
+                                        @if (!isDocGia)
+                                        {
+                                            <td class="text-center">
+                                                @if (!isDaTra)
+                                                {
+                                                    <div class="d-flex justify-content-center gap-1">
+                                                        <form asp-action="TraSach" method="post" class="d-inline">
+                                                            <input type="hidden" name="maPM" value="@maPM" />
+                                                            <input type="hidden" name="maSach" value="@maSach" />
+                                                            <button type="submit" class="btn btn-sm btn-success px-2 py-1" title="Xác nhận trả sách">
+                                                                <i class="bi bi-check2-circle me-1"></i>Trả
+                                                            </button>
+                                                        </form>
+
+                                                        @if (soLanGiaHan == 0 && !isQuaHan)
+                                                        {
+                                                            <form asp-action="GiaHan" method="post" class="d-inline">
+                                                                <input type="hidden" name="maPM" value="@maPM" />
+                                                                <input type="hidden" name="maSach" value="@maSach" />
+                                                                <button type="submit" class="btn btn-sm btn-outline-info px-2 py-1" title="Gia hạn sách (1 lần)">
+                                                                    <i class="bi bi-arrow-repeat"></i>
+                                                                </button>
+                                                            </form>
+                                                        }
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted small"><i class="bi bi-check-all text-success"></i> Hoàn tất</span>
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="card card-custom p-5 text-center bg-white">
+        <i class="bi bi-journal-x text-muted display-4 mb-3"></i>
+        <h5 class="fw-bold text-dark">Chưa có phiếu mượn nào</h5>
+        <p class="text-muted small">Hãy lập phiếu mượn mới hoặc chọn sách từ danh mục để bắt đầu.</p>
+        <div>
+            <a asp-action="Create" class="btn btn-primary btn-sm">Lập phiếu mượn mới</a>
+        </div>
+    </div>
+}

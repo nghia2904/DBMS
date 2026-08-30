@@ -1,0 +1,251 @@
+@using System.Data
+@model DataTable
+@{
+    ViewData["Title"] = "Xử Lý Yêu Cầu Mượn";
+    string trangThai = ViewBag.TrangThai ?? "";
+}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-clipboard-check me-2 text-success"></i>Xử Lý Yêu Cầu Mượn</h2>
+        <p class="text-muted mb-0">Duyệt hoặc từ chối yêu cầu mượn từ các độc giả — <strong>Mỗi hành động là 1 Giao Tác (Transaction) với BEGIN TRAN...COMMIT</strong></p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <div class="btn-group shadow-sm" role="group">
+            <a asp-action="Index" asp-route-trangThai="" class="btn btn-outline-primary @(string.IsNullOrEmpty(trangThai) ? "active" : "")">
+                <i class="bi bi-funnel me-1"></i>Tất cả
+            </a>
+            <a asp-action="Index" asp-route-trangThai="Chờ xử lý" class="btn btn-outline-warning @(trangThai == "Chờ xử lý" ? "active" : "")">
+                ⏳ Chờ xử lý
+            </a>
+            <a asp-action="Index" asp-route-trangThai="Đã duyệt" class="btn btn-outline-success @(trangThai == "Đã duyệt" ? "active" : "")">
+                ✓ Đã duyệt
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- DANH SÁCH YÊU CẦU CHỜ XỬ LÝ -->
+<div class="card card-custom bg-white">
+    <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-list-check me-2 text-primary"></i>Yêu Cầu Mượn</h5>
+        <span class="badge bg-primary">@(Model?.Rows.Count ?? 0) yêu cầu</span>
+    </div>
+    
+    @if (Model != null && Model.Rows.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">STT</th>
+                        <th>Độc Giả</th>
+                        <th>Tên Sách</th>
+                        <th class="text-center">Ngày Gửi</th>
+                        <th class="text-center">Trạng Thái</th>
+                        <th class="text-center">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int index = 1;
+                        foreach (DataRow row in Model.Rows)
+                        {
+                            var maYC = Convert.ToInt32(row["MaYC"]);
+                            var trangThaiItem = row["TrangThai"].ToString();
+                            var ngayGui = row["NgayYeuCau"] != DBNull.Value ? Convert.ToDateTime(row["NgayYeuCau"]).ToString("dd/MM/yyyy HH:mm") : "-";
+                            var tenSach = row["TenSach"].ToString();
+                            var tenDocGia = row["TenDocGia"].ToString();
+                            var lyDo = row["LyDoTuChoi"] != DBNull.Value ? row["LyDoTuChoi"].ToString() : "";
+
+                            <tr>
+                                <td class="ps-3 fw-bold">@index</td>
+                                <td class="fw-bold text-primary">@tenDocGia</td>
+                                <td class="fw-bold text-dark" title="@tenSach">
+                                    <span class="d-block text-truncate" style="max-width: 200px;">@tenSach</span>
+                                </td>
+                                <td class="text-center"><small>@ngayGui</small></td>
+                                <td class="text-center">
+                                    @if (trangThaiItem == "Chờ xử lý")
+                                    {
+                                        <span class="badge bg-warning text-dark">⏳ Chờ duyệt</span>
+                                    }
+                                    else if (trangThaiItem == "Đã duyệt")
+                                    {
+                                        <span class="badge bg-success">✓ Đã duyệt</span>
+                                    }
+                                    else if (trangThaiItem == "Từ chối")
+                                    {
+                                        <span class="badge bg-danger">✗ Từ chối</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">@trangThaiItem</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (trangThaiItem == "Chờ xử lý")
+                                    {
+                                        <!-- Modal trigger buttons -->
+                                        <button class="btn btn-sm btn-outline-success me-1" data-bs-toggle="modal" data-bs-target="#modalDuyet@maYC">
+                                            <i class="bi bi-check-circle me-1"></i>Duyệt
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalTuChoi@maYC">
+                                            <i class="bi bi-x-circle me-1"></i>Từ chối
+                                        </button>
+
+                                        <!-- MODAL DUYỆT -->
+                                        <div class="modal fade" id="modalDuyet@maYC" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-success text-white">
+                                                        <h5 class="modal-title">Duyệt Yêu Cầu Mượn</h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form method="post" asp-action="XuLy" data-ajax-form="xu-ly">
+                                                        @Html.AntiForgeryToken()
+                                                        <div class="modal-body">
+                                                            <p class="text-muted small mb-3">Bạn sắp duyệt yêu cầu mượn của <strong>@tenDocGia</strong> cho sách <strong>@tenSach</strong>.</p>
+                                                            <p class="text-muted small">⚠️ Điều này sẽ:</p>
+                                                            <ul class="text-muted small">
+                                                                <li>Tạo 1 phiếu mượn</li>
+                                                                <li>Trừ số lượng sách trong kho</li>
+                                                                <li>Cập nhật tất cả trong 1 giao tác</li>
+                                                            </ul>
+                                                            <input type="hidden" name="maYC" value="@maYC" />
+                                                            <input type="hidden" name="ketQua" value="DUYET" />
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                            <button type="submit" class="btn btn-success">
+                                                                <i class="bi bi-check-circle me-1"></i>Xác Nhận Duyệt
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- MODAL TỪ CHỐI -->
+                                        <div class="modal fade" id="modalTuChoi@maYC" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-danger text-white">
+                                                        <h5 class="modal-title">Từ Chối Yêu Cầu Mượn</h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form method="post" asp-action="XuLy" data-ajax-form="xu-ly">
+                                                        @Html.AntiForgeryToken()
+                                                        <div class="modal-body">
+                                                            <p class="text-muted small mb-3">Bạn sắp từ chối yêu cầu mượn của <strong>@tenDocGia</strong> cho sách <strong>@tenSach</strong>.</p>
+                                                            <label class="form-label text-danger fw-bold">Lý do từ chối (bắt buộc):</label>
+                                                            <textarea class="form-control" name="lyDoTuChoi" placeholder="Ví dụ: Sách hết, độc giả nợ phạt..." required rows="3"></textarea>
+                                                            <input type="hidden" name="maYC" value="@maYC" />
+                                                            <input type="hidden" name="ketQua" value="TU_CHOI" />
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                            <button type="submit" class="btn btn-danger">
+                                                                <i class="bi bi-x-circle me-1"></i>Xác Nhận Từ Chối
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (trangThaiItem == "Từ chối")
+                                    {
+                                        <small class="text-danger">
+                                            <i class="bi bi-info-circle me-1"></i>@lyDo
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">-</span>
+                                    }
+                                </td>
+                            </tr>
+                            index++;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="card-body text-center py-5">
+            <i class="bi bi-inbox display-4 text-muted mb-3 d-block"></i>
+            <p class="text-muted mb-3"><strong>Không có yêu cầu nào</strong></p>
+            @if (!string.IsNullOrEmpty(trangThai))
+            {
+                <p class="text-muted small mb-3">Không có yêu cầu với trạng thái: <strong>@trangThai</strong></p>
+                <a asp-action="Index" class="btn btn-primary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Xem tất cả
+                </a>
+            }
+            else
+            {
+                <p class="text-muted small">Tất cả yêu cầu đã được xử lý hoặc chưa có yêu cầu mới.</p>
+            }
+        </div>
+    }
+</div>
+
+<!-- HƯỚNG DẪN -->
+<div class="mt-4 alert alert-info border border-info" role="alert">
+    <i class="bi bi-info-circle me-2"></i>
+    <strong>Ghi chú quan trọng:</strong> Mỗi lần bạn duyệt hoặc từ chối yêu cầu, 
+    hệ thống gọi 1 Stored Procedure có <strong>BEGIN TRAN...COMMIT</strong> bên trong SQL. 
+    Đây là nơi xử lý giao tác (không phải ở app C#). Xem DBMS Lab để hiểu chi tiết!
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const forms = document.querySelectorAll('form[data-ajax-form="xu-ly"]');
+
+    forms.forEach(form => {
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(form);
+            const modalEl = form.closest('.modal');
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const tokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+
+            if (!submitBtn || !tokenInput) return;
+
+            submitBtn.disabled = true;
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang xử lý...';
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'RequestVerificationToken': tokenInput.value
+                    },
+                    credentials: 'same-origin'
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Không thể xử lý yêu cầu');
+                }
+
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) modalInstance.hide();
+
+                setTimeout(() => location.reload(), 250);
+            } catch (error) {
+                alert(error.message || 'Lỗi khi xử lý yêu cầu');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    });
+});
+</script>

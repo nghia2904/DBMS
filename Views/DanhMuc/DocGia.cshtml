@@ -1,0 +1,200 @@
+@using System.Data
+@model DataTable
+@{
+    ViewData["Title"] = "Quản Lý Độc Giả";
+    string trangThai = ViewBag.TrangThai ?? "";
+}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-people me-2 text-primary"></i>Quản Lý Độc Giả</h2>
+        <p class="text-muted mb-0">Thêm, sửa, xóa các độc giả đăng ký — chỉ thủ thư mới được phép</p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <a href="#" data-bs-toggle="modal" data-bs-target="#modalThemDocGia" class="btn btn-success shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i> Thêm Độc Giả
+        </a>
+    </div>
+</div>
+
+<div class="card card-custom bg-white">
+    <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-list me-2"></i>Danh Sách Độc Giả</h5>
+        <span class="badge bg-primary">@(Model?.Rows.Count ?? 0) độc giả</span>
+    </div>
+
+    @if (Model != null && Model.Rows.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">STT</th>
+                        <th>Tên Độc Giả</th>
+                        <th>SDT</th>
+                        <th>Email</th>
+                        <th class="text-center">Trạng Thái</th>
+                        <th class="text-center">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int index = 1;
+                        foreach (DataRow row in Model.Rows)
+                        {
+                            int maDocGia = Convert.ToInt32(row["MaDocGia"]);
+                            string hoTen = row["HoTen"].ToString();
+                            string sdt = row["SDT"] != DBNull.Value ? row["SDT"].ToString() : "-";
+                            string email = row["Email"] != DBNull.Value ? row["Email"].ToString() : "-";
+                            string trangThaiItem = row["TrangThai"] != DBNull.Value ? row["TrangThai"].ToString() : "Hoạt động";
+
+                            <tr>
+                                <td class="ps-3">@index</td>
+                                <td><strong>@hoTen</strong></td>
+                                <td>@sdt</td>
+                                <td><small class="text-muted">@email</small></td>
+                                <td class="text-center">
+                                    <span class="badge @(trangThaiItem == "Hoạt động" ? "bg-success" : "bg-danger")">
+                                        @trangThaiItem
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalSuaDocGia@maDocGia">
+                                        <i class="bi bi-pencil-square"></i> Sửa
+                                    </button>
+                                    <form method="post" asp-action="XoaDocGia" style="display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="maDocGia" value="@maDocGia" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa độc giả này?');">
+                                            <i class="bi bi-trash"></i> Xóa
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+
+                            <div class="modal fade" id="modalSuaDocGia@maDocGia" tabindex="-1">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-warning text-dark">
+                                            <h5 class="modal-title">Sửa Độc Giả</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="post" asp-action="SuaDocGia">
+                                            @Html.AntiForgeryToken()
+                                            <div class="modal-body">
+                                                <input type="hidden" name="maDocGia" value="@maDocGia" />
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-bold">Họ Tên</label>
+                                                        <input type="text" class="form-control" name="hoTen" value="@hoTen" required />
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-bold">Ngày Sinh</label>
+                                                        <input type="date" class="form-control" name="ngaySinh" value="@(row["NgaySinh"] != DBNull.Value ? Convert.ToDateTime(row["NgaySinh"]).ToString("yyyy-MM-dd") : "")" />
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-bold">Giới Tính</label>
+                                                        <select class="form-select" name="gioiTinh">
+                                                            <option value="">Chọn...</option>
+                                                            <option value="Nam" selected="@(row["GioiTinh"]?.ToString() == "Nam" ? "selected" : "")">Nam</option>
+                                                            <option value="Nữ" selected="@(row["GioiTinh"]?.ToString() == "Nữ" ? "selected" : "")">Nữ</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-bold">SĐT</label>
+                                                        <input type="text" class="form-control" name="sdt" value="@sdt" required />
+                                                    </div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Email</label>
+                                                    <input type="email" class="form-control" name="email" value="@email" />
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Địa Chỉ</label>
+                                                    <textarea class="form-control" name="diaChi" rows="2">@(row["DiaChi"] != DBNull.Value ? row["DiaChi"].ToString() : "")</textarea>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Trạng Thái</label>
+                                                    <select class="form-select" name="trangThai" required>
+                                                        <option value="Hoạt động" selected="@(trangThaiItem == "Hoạt động" ? "selected" : "")">Hoạt động</option>
+                                                        <option value="Bị khóa" selected="@(trangThaiItem == "Bị khóa" ? "selected" : "")">Bị khóa</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                <button type="submit" class="btn btn-warning">Lưu</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            index++;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="card-body text-center py-5">
+            <p class="text-muted">Chưa có độc giả nào.</p>
+        </div>
+    }
+</div>
+
+<div class="modal fade" id="modalThemDocGia" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Thêm Độc Giả</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" asp-action="ThemDocGia">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Họ Tên</label>
+                            <input type="text" class="form-control" name="hoTen" required />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Ngày Sinh</label>
+                            <input type="date" class="form-control" name="ngaySinh" />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Giới Tính</label>
+                            <select class="form-select" name="gioiTinh">
+                                <option value="">Chọn...</option>
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">SĐT</label>
+                            <input type="text" class="form-control" name="sdt" required />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" class="form-control" name="email" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Địa Chỉ</label>
+                        <textarea class="form-control" name="diaChi" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success">Thêm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

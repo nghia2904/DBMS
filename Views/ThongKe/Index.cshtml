@@ -1,0 +1,137 @@
+@using System.Data
+@{
+    ViewData["Title"] = "Báo Cáo & Thống Kê Thư Viện";
+    var isDayDu = ViewBag.IsDayDu ?? false;
+    var stats = ViewBag.Stats as DataTable;
+    var theLoai = ViewBag.TheLoai as DataTable;
+    var topDocGia = ViewBag.TopDocGia as DataTable;
+    var quaHan = ViewBag.QuaHan as DataTable;
+    var theoThang = ViewBag.TheoThang as DataTable;
+
+    DataRow? statRow = stats != null && stats.Rows.Count > 0 ? stats.Rows[0] : null;
+}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-graph-up-arrow text-primary me-2"></i>Báo Cáo & Thống Kê Thư Viện</h2>
+        <p class="text-muted mb-0">Dữ liệu được tổng hợp trực tiếp từ <strong>@(isDayDu ? "6 SQL Views" : "SP Mini")</strong> trong SQL Server</p>
+    </div>
+</div>
+
+<!-- KPI TỔNG THỂ -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-custom p-3 bg-white">
+            <span class="text-muted small text-uppercase fw-bold">Tổng Lượt Mượn Sách</span>
+            <h3 class="fw-bold text-primary mb-0 mt-1">@(statRow != null ? statRow["TongPhieuMuon"] : "45")</h3>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-custom p-3 bg-white">
+            <span class="text-muted small text-uppercase fw-bold">Số Sách Đang Mượn</span>
+            <h3 class="fw-bold text-warning mb-0 mt-1">@(statRow != null ? statRow["DangMuon"] : "18")</h3>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-custom p-3 bg-white">
+            <span class="text-muted small text-uppercase fw-bold">Số Phiếu Quá Hạn</span>
+            <h3 class="fw-bold text-danger mb-0 mt-1">@(statRow != null ? statRow["QuaHan"] : "2")</h3>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-custom p-3 bg-white">
+            <span class="text-muted small text-uppercase fw-bold">Tổng Tiền Phạt Đã Thu</span>
+            <h3 class="fw-bold text-success mb-0 mt-1">@(statRow != null ? Convert.ToDecimal(statRow["TongTienPhat"]).ToString("N0") + " đ" : "0 đ")</h3>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- VIEW 1: THỐNG KÊ SÁCH THEO THỂ LOẠI (v_ThongKeSachTheoTheLoai) -->
+    <div class="@(isDayDu ? "col-lg-7" : "col-lg-12")">
+        <div class="card card-custom h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Thống Kê Sách Theo Thể Loại</h5>
+                <span class="badge bg-secondary-subtle text-dark">View: v_ThongKeSachTheoTheLoai</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Thể Loại</th>
+                                <th class="text-center">Đầu Sách</th>
+                                <th class="text-center">Tổng Bản</th>
+                                <th class="text-center">Còn Trong Kho</th>
+                                <th class="text-end">Giá Trị Kho</th>
+                                <th class="text-center">Lượt Mượn</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (theLoai != null && theLoai.Rows.Count > 0)
+                            {
+                                foreach (DataRow row in theLoai.Rows)
+                                {
+                                    <tr>
+                                        <td class="ps-3 fw-bold text-dark">@row["TenTheLoai"]</td>
+                                        <td class="text-center">@row["TongSoDauSach"]</td>
+                                        <td class="text-center">@row["TongSoLuongSach"]</td>
+                                        <td class="text-center text-success fw-bold">@row["SoDauSachCon"]</td>
+                                        <td class="text-end">@Convert.ToDecimal(row["GiaTriKho"]).ToString("N0") đ</td>
+                                        <td class="text-center fw-bold text-primary">@row["TongLuotMuon"]</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 2: TOP ĐỘC GIẢ MƯỢN NHIỀU (v_TopDocGiaMuonNhieu) -->
+    <div class="@(isDayDu ? "col-lg-5" : "col-lg-12")">
+        <div class="card card-custom h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-trophy-fill text-warning me-2"></i>Top Độc Giả Tích Cực</h5>
+                <span class="badge bg-secondary-subtle text-dark">View: v_TopDocGiaMuonNhieu</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Độc Giả</th>
+                                <th>SĐT</th>
+                                <th class="text-center">Lượt Mượn</th>
+                                <th>Lần Mượn Gần Nhất</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (topDocGia != null && topDocGia.Rows.Count > 0)
+                            {
+                                int rank = 1;
+                                foreach (DataRow row in topDocGia.Rows)
+                                {
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-bold text-dark">
+                                                <span class="badge @(rank <= 3 ? "bg-warning text-dark" : "bg-light text-muted border") me-1">#@rank</span>
+                                                @row["TenDocGia"]
+                                            </div>
+                                        </td>
+                                        <td><small class="text-muted">@row["SDT"]</small></td>
+                                        <td class="text-center fw-bold text-primary">@row["TongLuotMuon"]</td>
+                                        <td><small class="text-muted">@(row["LanMuonGanNhat"] != DBNull.Value ? Convert.ToDateTime(row["LanMuonGanNhat"]).ToString("dd/MM/yyyy") : "-")</small></td>
+                                    </tr>
+                                    rank++;
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

@@ -1,0 +1,375 @@
+@using System.Data
+@{
+    ViewData["Title"] = "Phòng Thí Nghiệm Điều Khiển Tương Tranh & Lịch Giao Tác (DBMS Lab)";
+    var sachList = ViewBag.SachList as DataTable;
+    var theLoaiList = ViewBag.TheLoaiList as DataTable;
+}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-primary mb-1">
+            <i class="bi bi-cpu-fill text-danger me-2"></i>Phòng Thí Nghiệm Tương Tranh & Lịch Giao Tác
+        </h2>
+        <p class="text-muted mb-0">
+            Mô phỏng trực quan 4 vấn đề tương tranh (Lost Update, Dirty Read, Unrepeatable Read, Phantom Read) & Deadlock từ góc nhìn người dùng thực tế.
+        </p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <a href="#matrixSection" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-table me-1"></i>Ma trận Isolation Levels
+        </a>
+    </div>
+</div>
+
+<!-- KHUNG ĐIỀU KHIỂN CHÍNH (LAB CONTROL PANEL) -->
+<div class="card card-custom mb-4 border-top border-4 border-danger">
+    <div class="card-body p-4">
+        <div class="row g-3 align-items-end">
+            <!-- Chọn Kịch bản -->
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label fw-bold"><i class="bi bi-diagram-3 me-1 text-primary"></i>Chọn Vấn Đề Tương Tranh:</label>
+                <select id="selectProblem" class="form-select form-select-lg shadow-sm border-primary">
+                    <option value="LostUpdate" selected>1. Lost Update (Mất cập nhật)</option>
+                    <option value="DirtyRead">2. Dirty Read (Đọc rác / Uncommitted)</option>
+                    <option value="UnrepeatableRead">3. Unrepeatable Read (Đọc không lặp lại)</option>
+                    <option value="PhantomRead">4. Phantom Read (Bóng ma với Cursor)</option>
+                    <option value="Deadlock">5. Deadlock (Khóa chết & Lỗi 1205)</option>
+                </select>
+            </div>
+
+            <!-- Chế độ chạy -->
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label fw-bold"><i class="bi bi-shield-shaded me-1 text-success"></i>Chế Độ Thực Thi:</label>
+                <div class="btn-group w-100 shadow-sm" role="group">
+                    <input type="radio" class="btn-check" name="radioMode" id="modeLoi" value="Loi" checked autocomplete="off">
+                    <label class="btn btn-outline-danger" for="modeLoi"><i class="bi bi-exclamation-octagon me-1"></i>Chưa Xử Lý (Lỗi)</label>
+
+                    <input type="radio" class="btn-check" name="radioMode" id="modeKhacPhuc" value="KhacPhuc" autocomplete="off">
+                    <label class="btn btn-outline-success" for="modeKhacPhuc"><i class="bi bi-check-circle me-1"></i>Đã Khắc Phục</label>
+                </div>
+            </div>
+
+            <!-- Chọn Độ Trễ (Delay) -->
+            <div class="col-lg-2 col-md-4">
+                <label class="form-label fw-bold"><i class="bi bi-stopwatch me-1 text-warning"></i>Độ Trễ T1 (Delay):</label>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="range" class="form-range" id="rangeDelay" min="1" max="10" value="4" oninput="document.getElementById('delayVal').innerText = this.value + 's'">
+                    <span id="delayVal" class="badge bg-dark fs-6 px-2 py-1">4s</span>
+                </div>
+            </div>
+
+            <!-- Tham số chọn sách / thể loại -->
+            <div class="col-lg-2 col-md-4" id="divChonSach">
+                <label class="form-label fw-bold">Mã / Tên Sách:</label>
+                <select id="selectSach" class="form-select">
+                    @if (sachList != null)
+                    {
+                        foreach (DataRow row in sachList.Rows)
+                        {
+                            <option value="@row["MaSach"]">#@row["MaSach"] - @row["TenSach"] (SL: @row["SoLuong"])</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="col-lg-2 col-md-4 d-none" id="divChonTheLoai">
+                <label class="form-label fw-bold">Thể Loại (Phantom):</label>
+                <select id="selectTheLoai" class="form-select">
+                    @if (theLoaiList != null)
+                    {
+                        foreach (DataRow row in theLoaiList.Rows)
+                        {
+                            <option value="@row["MaTheLoai"]">@row["TenTheLoai"]</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <!-- Nút bấm kích hoạt -->
+            <div class="col-lg-2 col-md-4 text-end">
+                <button id="btnRunParallel" class="btn btn-danger btn-lg w-100 shadow fw-bold d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-play-circle-fill fs-5"></i>
+                    <span>CHẠY DEMO</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mô tả kịch bản tóm tắt -->
+        <div id="scenarioDescription" class="alert alert-info mt-3 mb-0 py-2 small d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle-fill fs-5"></i>
+            <span id="descText">2 người dùng cùng mượn 1 cuốn sách khi chỉ còn 1 quyển. T1 đọc số lượng, delay 4s rồi trừ kho; T2 chen ngang đọc và trừ kho.</span>
+        </div>
+    </div>
+</div>
+
+<!-- KHUNG MÔ PHỎNG SONG SONG: CLIENT 1 (T1) vs CLIENT 2 (T2) -->
+<div class="row g-4 mb-4">
+    <!-- CLIENT 1 / GIAO TÁC T1 -->
+    <div class="col-md-6">
+        <div class="card card-custom h-100 border-top border-4 border-primary">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-person-workspace fs-4"></i>
+                    <div>
+                        <h5 class="mb-0 fw-bold">Client 1 (Giao tác $T_1$)</h5>
+                        <small class="opacity-75">Tiến trình bắt đầu trước & giữ giao tác</small>
+                    </div>
+                </div>
+                <span id="statusBadgeT1" class="badge bg-light text-primary fs-6">Sẵn sàng</span>
+            </div>
+            <div class="card-body p-3 bg-light">
+                <div class="p-3 bg-white rounded border mb-3 min-vh-25 shadow-sm">
+                    <h6 class="text-muted small text-uppercase fw-bold"><i class="bi bi-terminal me-1"></i>Nhật ký thực thi T1:</h6>
+                    <div id="logT1" class="font-monospace small" style="min-height: 120px; max-height: 200px; overflow-y: auto;">
+                        <span class="text-muted fst-italic">Chưa có dữ liệu. Hãy bấm nút 'CHẠY DEMO'.</span>
+                    </div>
+                </div>
+                <div class="alert alert-light border mb-0">
+                    <strong class="d-block small text-muted">Kết quả trả về cho Client 1:</strong>
+                    <div id="resultT1" class="fw-bold text-dark fs-6 mt-1">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLIENT 2 / GIAO TÁC T2 -->
+    <div class="col-md-6">
+        <div class="card card-custom h-100 border-top border-4 border-warning">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-person-badge fs-4"></i>
+                    <div>
+                        <h5 class="mb-0 fw-bold">Client 2 (Giao tác $T_2$)</h5>
+                        <small class="opacity-75">Tiến trình chen ngang vào giữa</small>
+                    </div>
+                </div>
+                <span id="statusBadgeT2" class="badge bg-dark text-white fs-6">Sẵn sàng</span>
+            </div>
+            <div class="card-body p-3 bg-light">
+                <div class="p-3 bg-white rounded border mb-3 min-vh-25 shadow-sm">
+                    <h6 class="text-muted small text-uppercase fw-bold"><i class="bi bi-terminal me-1"></i>Nhật ký thực thi T2:</h6>
+                    <div id="logT2" class="font-monospace small" style="min-height: 120px; max-height: 200px; overflow-y: auto;">
+                        <span class="text-muted fst-italic">Chưa có dữ liệu. Hãy bấm nút 'CHẠY DEMO'.</span>
+                    </div>
+                </div>
+                <div class="alert alert-light border mb-0">
+                    <strong class="d-block small text-muted">Kết quả trả về cho Client 2:</strong>
+                    <div id="resultT2" class="fw-bold text-dark fs-6 mt-1">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KHUNG GIẢI THÍCH LỊCH GIAO TÁC & PHÂN TÍCH HỆ QTCSDL -->
+<div class="card card-custom mb-4 border-start border-4 border-info">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-journal-text text-info"></i>Phân Tích Lịch Giao Tác ($S$) & Cơ Chế DBMS
+        </h5>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <h6 class="fw-bold text-primary"><i class="bi bi-clock-history me-1"></i>Lịch Giao Tác Thực Thi ($S$):</h6>
+                <div id="timelineVisual" class="p-3 bg-dark text-light rounded font-monospace small" style="min-height: 110px;">
+                    <span class="text-secondary">// Lịch giao tác xen kẽ giữa T1 và T2 sẽ được dựng sau khi chạy</span>
+                </div>
+                <div class="mt-2 text-muted small">
+                    <strong>Mức cô lập:</strong> <span id="lblIsolation" class="badge bg-secondary">-</span> | 
+                    <strong>Khóa sử dụng:</strong> <span id="lblLocking" class="badge bg-secondary">-</span>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <h6 class="fw-bold text-success"><i class="bi bi-lightbulb me-1"></i>Giải Thích Hiện Tượng:</h6>
+                <div id="boxExplanation" class="p-3 bg-light rounded border text-dark" style="min-height: 110px;">
+                    <span class="text-muted">Chọn một kịch bản và bấm chạy để xem phân tích chi tiết.</span>
+                </div>
+                <div class="mt-2 small text-muted">
+                    <strong>Hành vi của SQL Server:</strong> <span id="lblDbmsBehavior" class="fst-italic text-dark">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MA TRẬN ISOLATION LEVELS & LÝ THUYẾT DBMS -->
+<div id="matrixSection" class="card card-custom mb-4">
+    <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-grid-3x3-gap-fill me-2 text-warning"></i>Bảng Ma Trận Các Mức Cô Lập (Isolation Levels) & Khả Năng Phòng Chống</h5>
+        <span class="badge bg-info text-dark">Tiêu Chuẩn ANSI / SQL Server</span>
+    </div>
+    <div class="card-body p-4">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle text-center mb-3">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-start" style="width: 25%;">Mức Cô Lập (Isolation Level)</th>
+                        <th style="width: 15%;">Lost Update</th>
+                        <th style="width: 15%;">Dirty Read</th>
+                        <th style="width: 18%;">Unrepeatable Read</th>
+                        <th style="width: 15%;">Phantom Read</th>
+                        <th class="text-start">Cơ Chế Khóa Của DBMS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="text-start fw-bold text-danger"><code>READ UNCOMMITTED</code></td>
+                        <td><span class="badge bg-danger">❌ Bị lỗi</span></td>
+                        <td><span class="badge bg-danger">❌ Bị lỗi</span></td>
+                        <td><span class="badge bg-danger">❌ Bị lỗi</span></td>
+                        <td><span class="badge bg-danger">❌ Bị lỗi</span></td>
+                        <td class="text-start small">Không dùng Shared Lock khi đọc. Đọc thẳng dữ liệu chưa commit.</td>
+                    </tr>
+                    <tr class="table-warning">
+                        <td class="text-start fw-bold text-primary">
+                            <code>READ COMMITTED</code>
+                            <span class="badge bg-primary ms-1">Mặc định</span>
+                        </td>
+                        <td><span class="badge bg-danger">❌ Bị lỗi</span></td>
+                        <td><span class="badge bg-success">✅ Chặn được</span></td>
+                        <td><span class="badge bg-danger">❌ Bị lỗi</span></td>
+                        <td><span class="badge bg-danger">❌ Bị lỗi</span></td>
+                        <td class="text-start small">Dùng Shared Lock khi đọc dòng nhưng <strong>nhả khóa ngay lập tức</strong> sau lệnh SELECT.</td>
+                    </tr>
+                    <tr>
+                        <td class="text-start fw-bold text-warning"><code>REPEATABLE READ</code></td>
+                        <td><span class="badge bg-success">✅ Chặn được</span></td>
+                        <td><span class="badge bg-success">✅ Chặn được</span></td>
+                        <td><span class="badge bg-success">✅ Chặn được</span></td>
+                        <td><span class="badge bg-danger">❌ Bị lỗi</span></td>
+                        <td class="text-start small">Giữ Shared Lock trên các dòng đã đọc đến <strong>hết Transaction</strong>. Không ngăn được INSERT mới.</td>
+                    </tr>
+                    <tr class="table-success">
+                        <td class="text-start fw-bold text-success"><code>SERIALIZABLE</code></td>
+                        <td><span class="badge bg-success">✅ Chặn được</span></td>
+                        <td><span class="badge bg-success">✅ Chặn được</span></td>
+                        <td><span class="badge bg-success">✅ Chặn được</span></td>
+                        <td><span class="badge bg-success">✅ Chặn được</span></td>
+                        <td class="text-start small">Sử dụng <strong>Key-Range Locks</strong> khóa toàn bộ khoảng giá trị. Chặn hoàn toàn cả 4 lỗi.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="row g-3 mt-2">
+            <div class="col-md-6">
+                <div class="p-3 border rounded bg-light small">
+                    <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Về Deadlock (Khóa chết):</h6>
+                    <p class="mb-0">
+                        Deadlock xuất hiện khi ta sử dụng khóa (Locks) để giải quyết các vấn đề tương tranh nhưng các giao tác truy xuất tài nguyên chéo nhau.
+                        Giải pháp tối ưu là <strong>Chuẩn hóa thứ tự truy cập tài nguyên (Resource Ordering)</strong> và cơ chế <strong>Retry</strong> ở ứng dụng.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 border rounded bg-light small">
+                    <h6 class="fw-bold text-primary"><i class="bi bi-arrow-repeat me-1"></i>Giao tác ($T$) vs Lịch giao tác ($S$):</h6>
+                    <p class="mb-0">
+                        Giao tác ($T$) là chuỗi thao tác của 1 người dùng đơn lẻ. Lịch giao tác ($S$) là trật tự xen kẽ của tất cả các thao tác từ nhiều giao tác đồng thời. Một lịch giao tác hợp lệ phải tương đương với một lịch tuần tự (Serializable Schedule).
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const descriptions = {
+        "LostUpdate": "2 người dùng cùng mượn 1 cuốn sách khi chỉ còn 1 quyển. T1 đọc số lượng, delay rồi trừ kho; T2 chen ngang đọc và trừ kho.",
+        "DirtyRead": "T1 sửa giá sách lên 250k, delay rồi ROLLBACK. T2 đọc giá trong lúc T1 chưa xong -> Đọc bẩn (Dirty Read) vs Đọc an toàn.",
+        "UnrepeatableRead": "T1 đọc giá sách lần 1, delay rồi đọc lại lần 2. T2 chen ngang ở giữa UPDATE giá sách thành công -> Cùng 1 dòng bị đổi giá trị.",
+        "PhantomRead": "T1 mở CURSOR đếm toàn bộ sách của thể loại X, delay rồi đếm lại. T2 chen ngang INSERT thêm 1 sách mới -> Số dòng thay đổi (Xuất hiện bóng ma).",
+        "Deadlock": "T1 khóa Độc giả 1 rồi chờ khóa Sách 2. T2 khóa Sách 2 rồi chờ khóa Độc giả 1 -> SQL Server phát hiện chu trình Deadlock (Lỗi 1205) & Hủy 1 giao tác."
+    };
+
+    $('#selectProblem').on('change', function() {
+        const val = $(this).val();
+        $('#descText').text(descriptions[val] || "");
+        if (val === 'PhantomRead') {
+            $('#divChonSach').addClass('d-none');
+            $('#divChonTheLoai').removeClass('d-none');
+        } else {
+            $('#divChonSach').removeClass('d-none');
+            $('#divChonTheLoai').addClass('d-none');
+        }
+    });
+
+    $('#btnRunParallel').on('click', function() {
+        const problem = $('#selectProblem').val();
+        const mode = $('input[name="radioMode"]:checked').val();
+        const delay = $('#rangeDelay').val();
+        const maSach = $('#selectSach').val() || 1;
+        const maTheLoai = $('#selectTheLoai').val() || 1;
+
+        // Reset UI
+        $('#statusBadgeT1').removeClass().addClass('badge bg-primary fs-6').html('<span class="spinner-border spinner-border-sm me-1"></span>Đang chạy...');
+        $('#statusBadgeT2').removeClass().addClass('badge bg-warning text-dark fs-6').html('<span class="spinner-border spinner-border-sm me-1"></span>Đang chờ chen ngang...');
+        $('#logT1').html('<div class="text-primary"><i class="bi bi-arrow-clockwise"></i> Đang khởi động T1...</div>');
+        $('#logT2').html('<div class="text-secondary"><i class="bi bi-hourglass-split"></i> Đang chờ tín hiệu T2...</div>');
+        $('#resultT1').html('<span class="text-muted">Đang xử lý...</span>');
+        $('#resultT2').html('<span class="text-muted">Đang xử lý...</span>');
+        $('#btnRunParallel').prop('disabled', true);
+
+        $.ajax({
+            url: '/DbmsLab/RunSimulation',
+            type: 'POST',
+            data: {
+                problemType: problem,
+                mode: mode,
+                delaySec: delay,
+                maSach: maSach,
+                maTheLoai: maTheLoai
+            },
+            success: function(res) {
+                $('#btnRunParallel').prop('disabled', false);
+
+                // Render Logs
+                let logT1Html = '';
+                let logT2Html = '';
+                let timelineText = '';
+
+                if (res.logs && res.logs.length > 0) {
+                    res.logs.forEach((log, index) => {
+                        const time = new Date(log.timestamp).toLocaleTimeString();
+                        const line = `<div class="mb-1"><strong>[${time}]</strong> ${log.stepName}<br><span class="text-muted">${log.detail}</span><br><code class="text-dark">${log.sqlExecuted}</code></div>`;
+                        if (log.transactionName === 'T1' || log.transactionName === 'Hệ thống') {
+                            logT1Html += line;
+                        }
+                        if (log.transactionName === 'T2') {
+                            logT2Html += line;
+                        }
+                        timelineText += `[${time}] ${log.transactionName}: ${log.stepName}\n`;
+                    });
+                }
+
+                $('#logT1').html(logT1Html || '<span class="text-success">Hoàn tất</span>');
+                $('#logT2').html(logT2Html || '<span class="text-success">Hoàn tất</span>');
+                $('#timelineVisual').text(timelineText);
+
+                // Results
+                $('#resultT1').html(res.t1Result ? `<span class="${res.t1Result.includes('LỖI') || res.t1Result.includes('DEADLOCK') ? 'text-danger' : 'text-success'}">${res.t1Result}</span>` : 'Thành công');
+                $('#resultT2').html(res.t2Result ? `<span class="${res.t2Result.includes('LỖI') || res.t2Result.includes('DEADLOCK') ? 'text-danger' : 'text-success'}">${res.t2Result}</span>` : 'Thành công');
+
+                $('#statusBadgeT1').removeClass().addClass(res.t1Result && res.t1Result.includes('DEADLOCK') ? 'badge bg-danger fs-6' : 'badge bg-success fs-6').text(res.t1Result && res.t1Result.includes('DEADLOCK') ? 'Bị Hủy (Victim)' : 'Hoàn tất');
+                $('#statusBadgeT2').removeClass().addClass(res.t2Result && res.t2Result.includes('DEADLOCK') ? 'badge bg-danger fs-6' : 'badge bg-success fs-6').text(res.t2Result && res.t2Result.includes('DEADLOCK') ? 'Bị Hủy (Victim)' : 'Hoàn tất');
+
+                // Metadata & Explanations
+                $('#lblIsolation').text(res.isolationLevelUsed);
+                $('#lblLocking').text(res.lockingHintUsed);
+                $('#boxExplanation').html(`<strong>${mode === 'Loi' ? '⚠️ TÌNH HUỐNG LỖI:' : '✅ CƠ CHẾ KHẮC PHỤC:'}</strong><p class="mb-0 mt-1">${res.explanation}</p>`);
+                $('#lblDbmsBehavior').text(res.dbmsBehavior);
+            },
+            error: function(xhr, status, err) {
+                $('#btnRunParallel').prop('disabled', false);
+                $('#statusBadgeT1').removeClass().addClass('badge bg-danger fs-6').text('Lỗi');
+                $('#statusBadgeT2').removeClass().addClass('badge bg-danger fs-6').text('Lỗi');
+                $('#resultT1').text('Lỗi hệ thống: ' + err);
+                $('#resultT2').text('Lỗi hệ thống: ' + err);
+            }
+        });
+    });
+</script>
+}
+

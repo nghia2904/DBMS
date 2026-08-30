@@ -1,0 +1,145 @@
+@using System.Data
+@model DataTable
+@{
+    ViewData["Title"] = "Quản Lý Nhà Xuất Bản";
+}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-building me-2 text-primary"></i>Quản Lý Nhà Xuất Bản</h2>
+        <p class="text-muted mb-0">Thêm, sửa, xóa các nhà xuất bản — chỉ thủ thư mới được phép</p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <a href="#" data-bs-toggle="modal" data-bs-target="#modalThemNXB" class="btn btn-success shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i> Thêm NXB
+        </a>
+    </div>
+</div>
+
+<div class="card card-custom bg-white">
+    <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-list me-2"></i>Danh Sách Nhà Xuất Bản</h5>
+        <span class="badge bg-primary">@(Model?.Rows.Count ?? 0) NXB</span>
+    </div>
+
+    @if (Model != null && Model.Rows.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">STT</th>
+                        <th>Tên NXB</th>
+                        <th>Địa Chỉ</th>
+                        <th>Số Điện Thoại</th>
+                        <th class="text-center">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int index = 1;
+                        foreach (DataRow row in Model.Rows)
+                        {
+                            int maNXB = Convert.ToInt32(row["MaNXB"]);
+                            string tenNXB = row["TenNXB"].ToString();
+                            string diaChi = row["DiaChi"] != DBNull.Value ? row["DiaChi"].ToString() : "-";
+                            string sdt = row["SoDienThoai"] != DBNull.Value ? row["SoDienThoai"].ToString() : "-";
+
+                            <tr>
+                                <td class="ps-3">@index</td>
+                                <td><strong>@tenNXB</strong></td>
+                                <td><small>@diaChi</small></td>
+                                <td>@sdt</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalSuaNXB@maNXB">
+                                        <i class="bi bi-pencil-square"></i> Sửa
+                                    </button>
+                                    <form method="post" asp-action="XoaNhaXuatBan" style="display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="maNXB" value="@maNXB" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa NXB này?');">
+                                            <i class="bi bi-trash"></i> Xóa
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+
+                            <div class="modal fade" id="modalSuaNXB@maNXB" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-warning text-dark">
+                                            <h5 class="modal-title">Sửa NXB</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="post" asp-action="SuaNhaXuatBan">
+                                            @Html.AntiForgeryToken()
+                                            <div class="modal-body">
+                                                <input type="hidden" name="maNXB" value="@maNXB" />
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Tên NXB</label>
+                                                    <input type="text" class="form-control" name="tenNXB" value="@tenNXB" required />
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Địa Chỉ</label>
+                                                    <input type="text" class="form-control" name="diaChi" value="@diaChi" />
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Số Điện Thoại</label>
+                                                    <input type="text" class="form-control" name="soDienThoai" value="@sdt" />
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                <button type="submit" class="btn btn-warning">Lưu</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            index++;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="card-body text-center py-5">
+            <p class="text-muted">Chưa có NXB nào.</p>
+        </div>
+    }
+</div>
+
+<div class="modal fade" id="modalThemNXB" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Thêm NXB</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" asp-action="ThemNhaXuatBan">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tên NXB</label>
+                        <input type="text" class="form-control" name="tenNXB" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Địa Chỉ</label>
+                        <input type="text" class="form-control" name="diaChi" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Số Điện Thoại</label>
+                        <input type="text" class="form-control" name="soDienThoai" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success">Thêm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

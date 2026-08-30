@@ -1,0 +1,140 @@
+@model QuanLyThuVien.Models.Sach
+@using System.Data
+@{
+    ViewData["Title"] = "Chỉnh Sửa Thông Tin Sách #" + Model.MaSach;
+    var theLoaiList = ViewBag.TheLoaiList as DataTable;
+    var tacGiaList = ViewBag.TacGiaList as DataTable;
+    var nxbList = ViewBag.NxbList as DataTable;
+}
+
+<div class="row justify-content-center my-4">
+    <div class="col-md-9">
+        <div class="card card-custom p-4 bg-white">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-pencil-square text-warning fs-3"></i>
+                        <div>
+                            <h4 class="fw-bold mb-0">Cập Nhật Thông Tin Sách #@Model.MaSach</h4>
+                            <small class="text-muted">Chỉnh sửa giá tiền, tồn kho, vị trí kệ & Thử nghiệm tương tranh</small>
+                        </div>
+                    </div>
+                    <a asp-action="Details" asp-route-id="@Model.MaSach" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i> Xem chi tiết
+                    </a>
+                </div>
+
+                <form asp-action="Edit" method="post">
+                    <input type="hidden" asp-for="MaSach" />
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-8">
+                            <label asp-for="TenSach" class="form-label fw-bold">Tên Sách (*)</label>
+                            <input asp-for="TenSach" class="form-control" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="ISBN" class="form-label fw-bold">Mã ISBN</label>
+                            <input asp-for="ISBN" class="form-control" required />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="GiaTien" class="form-label fw-bold text-danger">Đơn Giá Niêm Yết (VNĐ) (*)</label>
+                            <input asp-for="GiaTien" type="number" step="1000" class="form-control fw-bold border-danger" required />
+                            <small class="text-muted">Dùng để demo Dirty Read & Unrepeatable Read</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="SoLuong" class="form-label fw-bold text-success">Số Lượng Tồn Kho (*)</label>
+                            <input asp-for="SoLuong" type="number" min="0" class="form-control fw-bold border-success" required />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="ViTriKe" class="form-label fw-bold">Vị Trí Kệ Sách</label>
+                            <input asp-for="ViTriKe" class="form-control" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="MaTheLoai" class="form-label fw-bold">Thể Loại</label>
+                            <select asp-for="MaTheLoai" class="form-select" required>
+                                @if (theLoaiList != null)
+                                {
+                                    foreach (DataRow row in theLoaiList.Rows)
+                                    {
+                                        <option value="@row["MaTheLoai"]">@row["TenTheLoai"]</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="MaTacGia" class="form-label fw-bold">Tác Giả</label>
+                            <select asp-for="MaTacGia" class="form-select" required>
+                                @if (tacGiaList != null)
+                                {
+                                    foreach (DataRow row in tacGiaList.Rows)
+                                    {
+                                        <option value="@row["MaTacGia"]">@row["TenTacGia"]</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="MaNXB" class="form-label fw-bold">Nhà Xuất Bản</label>
+                            <select asp-for="MaNXB" class="form-select" required>
+                                @if (nxbList != null)
+                                {
+                                    foreach (DataRow row in nxbList.Rows)
+                                    {
+                                        <option value="@row["MaNXB"]">@row["TenNXB"]</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- ================= CẤU HÌNH GIAO TÁC DBMS (DÙNG CHO 2 TAB) ================= -->
+                    <div class="card border-warning mb-4 shadow-sm">
+                        <div class="card-header bg-warning bg-opacity-10 py-3">
+                            <h6 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+                                <i class="bi bi-cpu-fill text-warning"></i>
+                                <span>Tùy Chọn Chạy Giao Tác Demo Tương Tranh (Dành cho 2 Tab)</span>
+                            </h6>
+                        </div>
+                        <div class="card-body p-3 bg-light">
+                            <div class="row g-3 align-items-center">
+                                <div class="col-md-8">
+                                    <label class="form-label small fw-bold">Chọn Chế Độ Giao Tác Khi Bấm 'Lưu':</label>
+                                    <select name="dbmsMode" class="form-select">
+                                        <option value="" selected>1. Cập nhật bình thường (Chuẩn nghiệp vụ - 0s)</option>
+                                        <option value="DirtyRead_T1">2. [Tab 1 - Dirty Read] Sửa giá -> Delay 5s -> ROLLBACK (Để Tab 2 đọc bẩn)</option>
+                                        <option value="UnrepeatableRead_T2">3. [Tab 2 - Unrepeatable Read] Sửa giá và COMMIT ngay (Chen ngang Tab 1 đang đọc)</option>
+                                        <option value="Deadlock_T2_Loi">4. [Tab 2 - Deadlock] Khóa Sách -> Delay 3s -> Khóa Độc giả 1 (Gây lỗi 1205 với Tab 1)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">Thời gian Delay:</label>
+                                    <select name="delaySec" class="form-select">
+                                        <option value="3">3 Giây</option>
+                                        <option value="5" selected>5 Giây (Khuyên dùng để kịp đổi Tab)</option>
+                                        <option value="8">8 Giây</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between pt-3 border-top">
+                        <a asp-action="Details" asp-route-id="@Model.MaSach" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Hủy & Quay lại
+                        </a>
+                        <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">
+                            <i class="bi bi-check2-circle me-1"></i> Thực Thi Giao Tác Cập Nhật
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+

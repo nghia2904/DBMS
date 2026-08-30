@@ -1,0 +1,120 @@
+@using System.Data
+@model DataTable
+@{
+    ViewData["Title"] = "Yêu Cầu Mượn Của Tôi";
+}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-bell me-2 text-primary"></i>Yêu Cầu Mượn Của Tôi</h2>
+        <p class="text-muted mb-0">Quản lý các yêu cầu mượn sách mà bạn đã gửi — <strong>Chỉ Thủ thư mới xử lý & duyệt yêu cầu</strong></p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <a asp-controller="Sach" asp-action="Index" class="btn btn-outline-primary shadow-sm">
+            <i class="bi bi-search me-1"></i> Tìm sách để gửi yêu cầu
+        </a>
+    </div>
+</div>
+
+<!-- DANH SÁCH YÊU CẦU MƯỢN -->
+<div class="card card-custom bg-white">
+    <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-list-check me-2 text-primary"></i>Các Yêu Cầu Của Bạn</h5>
+        <span class="badge bg-primary">@(Model?.Rows.Count ?? 0) yêu cầu</span>
+    </div>
+    
+    @if (Model != null && Model.Rows.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">STT</th>
+                        <th>Tên Sách</th>
+                        <th class="text-center">Ngày Gửi</th>
+                        <th class="text-center">Trạng Thái</th>
+                        <th class="text-center">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int index = 1;
+                        foreach (DataRow row in Model.Rows)
+                        {
+                            var maYC = Convert.ToInt32(row["MaYC"]);
+                            var trangThai = row["TrangThai"].ToString();
+                            var ngayGui = row["NgayYeuCau"] != DBNull.Value ? Convert.ToDateTime(row["NgayYeuCau"]).ToString("dd/MM/yyyy HH:mm") : "-";
+                            var tenSach = row["TenSach"].ToString();
+
+                            <tr>
+                                <td class="ps-3 fw-bold">@index</td>
+                                <td class="fw-bold text-dark" title="@tenSach">
+                                    <span class="d-block text-truncate" style="max-width: 200px;">@tenSach</span>
+                                </td>
+                                <td class="text-center"><small>@ngayGui</small></td>
+                                <td class="text-center">
+                                    @if (trangThai == "Chờ xử lý")
+                                    {
+                                        <span class="badge bg-warning text-dark">⏳ Chờ xử lý</span>
+                                    }
+                                    else if (trangThai == "Đã duyệt")
+                                    {
+                                        <span class="badge bg-success">✓ Đã duyệt</span>
+                                    }
+                                    else if (trangThai == "Từ chối")
+                                    {
+                                        <span class="badge bg-danger">✗ Từ chối</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">@trangThai</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (trangThai == "Chờ xử lý")
+                                    {
+                                        <form method="post" asp-action="Huy" class="d-inline" style="display:inline;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="maYC" value="@maYC" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn chắc chắn muốn hủy yêu cầu này?');">
+                                                <i class="bi bi-x-circle me-1"></i>Hủy
+                                            </button>
+                                        </form>
+                                    }
+                                    else if (trangThai == "Đã duyệt")
+                                    {
+                                        <span class="badge bg-success-subtle text-success">Đã gửi phiếu</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">-</span>
+                                    }
+                                </td>
+                            </tr>
+                            index++;
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="card-body text-center py-5">
+            <i class="bi bi-inbox display-4 text-muted mb-3 d-block"></i>
+            <p class="text-muted mb-3"><strong>Chưa có yêu cầu nào</strong></p>
+            <p class="text-muted small mb-3">Hãy tìm kiếm sách và gửi yêu cầu mượn từ trang danh sách.</p>
+            <a asp-controller="Sach" asp-action="Index" class="btn btn-primary btn-sm">
+                <i class="bi bi-search me-1"></i> Tìm sách ngay
+            </a>
+        </div>
+    }
+</div>
+
+<!-- HƯỚNG DẪN -->
+<div class="mt-4 alert alert-info border border-info" role="alert">
+    <i class="bi bi-info-circle me-2"></i>
+    <strong>Cách sử dụng:</strong> Khi bạn gửi yêu cầu, Thủ thư sẽ xem và duyệt. 
+    Nếu được duyệt, phiếu mượn sẽ tự động được tạo và sách sẽ được cập nhật. 
+    Nếu bạn muốn hủy, hãy click nút "Hủy" khi yêu cầu vẫn ở trạng thái "Chờ duyệt".
+</div>

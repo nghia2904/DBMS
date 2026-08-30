@@ -1,0 +1,161 @@
+@using System.Data
+@model DataTable
+@{
+    ViewData["Title"] = "Quản Trị Tài Khoản & Phân Quyền (Admin)";
+}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-dark mb-1"><i class="bi bi-shield-lock-fill text-danger me-2"></i>Quản Trị Tài Khoản & Phân Quyền Hệ Thống</h2>
+        <p class="text-muted mb-0">Phân hệ dành riêng cho Quản trị viên (Admin - Role 4)</p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <a href="#" data-bs-toggle="modal" data-bs-target="#modalTaoTaiKhoan" class="btn btn-success shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i> Tạo Tài Khoản Mới
+        </a>
+    </div>
+</div>
+
+<div class="card card-custom">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-people-fill me-2 text-primary"></i>Danh Sách Tài Khoản Trong Cơ Sở Dữ Liệu</h5>
+        <span class="badge bg-secondary">Tổng số: @(Model?.Rows.Count ?? 0) tài khoản</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Mã TK</th>
+                        <th>Tên Đăng Nhập</th>
+                        <th>Họ và Tên</th>
+                        <th>Vai Trò</th>
+                        <th>Thông Tin</th>
+                        <th class="text-center">Trạng Thái</th>
+                        <th class="text-center" style="width: 180px;">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Rows.Count > 0)
+                    {
+                        foreach (DataRow row in Model.Rows)
+                        {
+                            var role = Convert.ToInt32(row["Role"]);
+                            var isActive = row["TrangThai"].ToString() == "Hoạt động";
+                            var maTK = Convert.ToInt32(row["MaTK"]);
+                            var isAdmin = row["Username"].ToString() == "admin";
+
+                            <tr>
+                                <td class="ps-3 fw-bold text-muted">#@maTK</td>
+                                <td>
+                                    <span class="fw-bold text-dark">@row["Username"]</span>
+                                    @if (row["MaDocGia"] != DBNull.Value)
+                                    {
+                                        <small class="d-block text-muted">ĐG: @row["MaDocGia"]</small>
+                                    }
+                                    @if (row["MaNV"] != DBNull.Value)
+                                    {
+                                        <small class="d-block text-muted">NV: @row["MaNV"]</small>
+                                    }
+                                </td>
+                                <td class="fw-semibold">@row["HoTen"]</td>
+                                <td>
+                                    <span class="badge badge-role-@role">@row["TenRole"]</span>
+                                </td>
+                                <td>
+                                    <div class="small"><i class="bi bi-telephone me-1"></i>@row["SDT"]</div>
+                                    <div class="small text-muted"><i class="bi bi-envelope me-1"></i>@row["Email"]</div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge @(isActive ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger")">
+                                        @row["TrangThai"]
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    @if (!isAdmin)
+                                    {
+                                        <form asp-action="ToggleStatus" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@maTK" />
+                                            <input type="hidden" name="trangThaiHienTai" value="@row["TrangThai"]" />
+                                            <button type="submit" class="btn btn-sm @(isActive ? "btn-outline-warning" : "btn-outline-success")" title="@(isActive ? "Khóa" : "Mở khóa")">
+                                                <i class="bi @(isActive ? "bi-lock" : "bi-unlock-fill")"></i>
+                                            </button>
+                                        </form>
+                                        <form asp-action="Xoa" method="post" style="display:inline;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@maTK" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa tài khoản này?');" title="Xóa">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-muted border" title="Tài khoản mặc định">Mặc định</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TẠO TÀI KHOẢN -->
+<div class="modal fade" id="modalTaoTaiKhoan" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Tạo Tài Khoản Mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" asp-action="TaoTaiKhoan">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Tên Đăng Nhập</label>
+                            <input type="text" class="form-control" name="username" placeholder="Ví dụ: nguyenvana" required />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Mật Khẩu</label>
+                            <input type="password" class="form-control" name="password" placeholder="Mật khẩu mạnh" required />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Vai Trò (Role)</label>
+                            <select class="form-select" name="role" required>
+                                <option value="">Chọn vai trò...</option>
+                                <option value="1">1 - Độc giả</option>
+                                <option value="2">2 - Thủ thư</option>
+                                <option value="3">3 - Ban QL</option>
+                                <option value="4">4 - Admin</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Mã Độc Giả (tuỳ chọn)</label>
+                            <input type="number" class="form-control" name="maDocGia" placeholder="Nếu là độc giả" />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Mã Nhân Viên (tuỳ chọn)</label>
+                        <input type="number" class="form-control" name="maNV" placeholder="Nếu là thủ thư/nhân viên" />
+                    </div>
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Tài khoản sẽ được tạo với trạng thái "Hoạt động". Bạn có thể khóa/mở khóa sau.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success">Tạo Tài Khoản</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+

@@ -1,0 +1,107 @@
+@model QuanLyThuVien.Models.Sach
+@using System.Data
+@{
+    ViewData["Title"] = "Thêm Sách Mới";
+    var theLoaiList = ViewBag.TheLoaiList as DataTable;
+    var tacGiaList = ViewBag.TacGiaList as DataTable;
+    var nxbList = ViewBag.NxbList as DataTable;
+}
+
+<div class="row justify-content-center my-4">
+    <div class="col-md-8">
+        <div class="card card-custom p-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-4 border-bottom pb-3">
+                    <i class="bi bi-book-half text-primary fs-3"></i>
+                    <div>
+                        <h4 class="fw-bold mb-0">Thêm Đầu Sách Mới (Thủ Thư)</h4>
+                        <small class="text-muted">Nhập thông tin chi tiết đầu sách vào kho thư viện</small>
+                    </div>
+                </div>
+
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small mb-3"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label asp-for="TenSach" class="form-label fw-bold">Tên Sách (*)</label>
+                            <input asp-for="TenSach" class="form-control" required placeholder="Nhập tên sách..." />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="ISBN" class="form-label fw-bold">Mã ISBN (*)</label>
+                            <input asp-for="ISBN" class="form-control" required placeholder="VD: 978-604-0-12345-6" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="MaTheLoai" class="form-label fw-bold">Thể Loại (*)</label>
+                            <select asp-for="MaTheLoai" class="form-select" required>
+                                <option value="">-- Chọn thể loại --</option>
+                                @if (theLoaiList != null)
+                                {
+                                    foreach (DataRow row in theLoaiList.Rows)
+                                    {
+                                        <option value="@row["MaTheLoai"]">@row["TenTheLoai"]</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="MaTacGia" class="form-label fw-bold">Tác Giả (*)</label>
+                            <select asp-for="MaTacGia" class="form-select" required>
+                                <option value="">-- Chọn tác giả --</option>
+                                @if (tacGiaList != null)
+                                {
+                                    foreach (DataRow row in tacGiaList.Rows)
+                                    {
+                                        <option value="@row["MaTacGia"]">@row["TenTacGia"]</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="MaNXB" class="form-label fw-bold">Nhà Xuất Bản (*)</label>
+                            <select asp-for="MaNXB" class="form-select" required>
+                                <option value="">-- Chọn NXB --</option>
+                                @if (nxbList != null)
+                                {
+                                    foreach (DataRow row in nxbList.Rows)
+                                    {
+                                        <option value="@row["MaNXB"]">@row["TenNXB"]</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="SoLuong" class="form-label fw-bold">Số Lượng Nhập (*)</label>
+                            <input asp-for="SoLuong" type="number" min="0" value="5" class="form-control" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="GiaTien" class="form-label fw-bold">Đơn Giá (VNĐ)</label>
+                            <input asp-for="GiaTien" type="number" step="1000" placeholder="150000" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="NamXuatBan" class="form-label fw-bold">Năm Xuất Bản</label>
+                            <input asp-for="NamXuatBan" type="number" value="@DateTime.Now.Year" class="form-control" />
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="ViTriKe" class="form-label fw-bold">Vị Trí Kệ</label>
+                            <input asp-for="ViTriKe" class="form-control" placeholder="VD: Kệ CNTT-01, Tầng 2" />
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+                        <a asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Quay lại
+                        </a>
+                        <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">
+                            <i class="bi bi-check-lg me-1"></i> Lưu Sách Mới
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+

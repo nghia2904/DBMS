@@ -1,0 +1,221 @@
+@model QuanLyThuVien.Models.Sach
+@{
+    ViewData["Title"] = "Chi Tiết Sách: " + Model.TenSach;
+    var isConSach = Model.SoLuong > 0 && Model.TrangThai == "Còn sách";
+    var isConIt = Model.SoLuong > 0 && Model.SoLuong <= 2;
+    var roleStr = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+    var isLibrarianOrAdmin = roleStr == "2" || roleStr == "4";
+}
+
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1">
+                <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Trang chủ</a></li>
+                <li class="breadcrumb-item"><a asp-controller="Sach" asp-action="Index">Khám phá sách</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Chi tiết sách</li>
+            </ol>
+        </nav>
+        <h2 class="fw-bold text-dark mb-0">@Model.TenSach</h2>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        @if (isLibrarianOrAdmin)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.MaSach" class="btn btn-warning shadow-sm me-2 fw-bold">
+                <i class="bi bi-pencil-square me-1"></i> Chỉnh sửa sách
+            </a>
+        }
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Quay lại danh sách
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- CỘT TRÁI: BÌA SÁCH & TRẠNG THÁI TỒN KHO -->
+    <div class="col-lg-4 col-md-5">
+        <div class="card card-custom p-4 text-center bg-white h-100">
+            <!-- Box bìa sách mô phỏng hiện đại -->
+            <div class="p-4 rounded-3 text-white mb-4 d-flex flex-column align-items-center justify-content-center shadow-sm"
+                 style="min-height: 220px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+                <i class="bi bi-book-half display-1 mb-2 text-warning"></i>
+                <h5 class="fw-bold text-center px-2 mb-1">@Model.TenSach</h5>
+                <small class="text-white-50">@Model.TenTacGia</small>
+            </div>
+
+            <!-- Trạng thái tồn kho -->
+            <div class="mb-3">
+                @if (Model.SoLuong == 0)
+                {
+                    <span class="badge bg-danger fs-6 px-3 py-2 rounded-pill">
+                        <i class="bi bi-x-circle me-1"></i> Hết sách (0 quyển)
+                    </span>
+                }
+                else if (isConIt)
+                {
+                    <span class="badge bg-warning text-dark fs-6 px-3 py-2 rounded-pill">
+                        <i class="bi bi-exclamation-triangle me-1"></i> Còn ít (@Model.SoLuong quyển)
+                    </span>
+                }
+                else
+                {
+                    <span class="badge bg-success fs-6 px-3 py-2 rounded-pill">
+                        <i class="bi bi-check-circle me-1"></i> Còn sách (@Model.SoLuong quyển)
+                    </span>
+                }
+            </div>
+
+            <div class="p-3 bg-light rounded text-start small mb-4">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Mã định danh:</span>
+                    <strong class="text-dark">#@Model.MaSach</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Mã ISBN:</span>
+                    <strong class="text-dark">@Model.ISBN</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Vị trí kệ:</span>
+                    <strong class="text-primary"><i class="bi bi-geo-alt me-1"></i>@(Model.ViTriKe ?? "Kệ chính")</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Giá niêm yết:</span>
+                    <strong class="text-danger fs-6">@(Model.GiaTien.HasValue ? Model.GiaTien.Value.ToString("N0") + " đ" : "Miễn phí")</strong>
+                </div>
+            </div>
+
+            <!-- Nút hành động -->
+            <div class="d-grid gap-2">
+                @if (isLibrarianOrAdmin)
+                {
+                    <a asp-controller="PhieuMuon" asp-action="Create" asp-route-maSach="@Model.MaSach" class="btn btn-success py-2 fw-bold shadow-sm">
+                        <i class="bi bi-journal-plus me-1"></i> Lập Phiếu Mượn Cho Cuốn Này
+                    </a>
+                }
+                else if (User.Identity?.IsAuthenticated == true && isConSach)
+                {
+                    <!-- Độc giả: Gửi yêu cầu mượn -->
+                    <form method="post" asp-controller="YeuCauMuon" asp-action="Tao" class="d-grid">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="maSach" value="@Model.MaSach" />
+                        <button type="submit" class="btn btn-primary py-2 fw-bold shadow-sm">
+                            <i class="bi bi-bell me-1"></i> Gửi Yêu Cầu Mượn
+                        </button>
+                    </form>
+                }
+                else if (User.Identity?.IsAuthenticated == true && !isConSach)
+                {
+                    <a href="#" class="btn btn-secondary py-2 fw-bold shadow-sm" disabled>
+                        <i class="bi bi-x-circle me-1"></i> Sách Hết / Không Có Sẵn
+                    </a>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login" class="btn btn-primary py-2 fw-bold shadow-sm">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Đăng Nhập Để Mượn Sách
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- CỘT PHẢI: CHI TIẾT & BẢNG THÍ NGHIỆM ĐỌC TƯƠNG TRANH (2 TAB) -->
+    <div class="col-lg-8 col-md-7">
+        <div class="card card-custom p-4 bg-white mb-4">
+            <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-info-circle-fill me-2"></i>Thông Tin Xuất Bản & Thể Loại
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <div class="p-3 border rounded bg-light">
+                        <small class="text-muted text-uppercase fw-bold d-block mb-1"><i class="bi bi-pen me-1"></i>Tác Giả</small>
+                        <h6 class="fw-bold text-dark mb-1">@Model.TenTacGia</h6>
+                        <small class="text-muted">Quốc tịch: @(ViewBag.QuocTichTacGia ?? "Không xác định")</small>
+                    </div>
+                </div>
+
+                <div class="col-sm-6">
+                    <div class="p-3 border rounded bg-light">
+                        <small class="text-muted text-uppercase fw-bold d-block mb-1"><i class="bi bi-tags me-1"></i>Thể Loại Sách</small>
+                        <h6 class="fw-bold text-dark mb-1">@Model.TenTheLoai</h6>
+                        <small class="text-muted">Quy định mượn tối đa: <strong class="text-primary">@Model.SoNgayMuonToiDa ngày</strong></small>
+                    </div>
+                </div>
+
+                <div class="col-sm-6">
+                    <div class="p-3 border rounded bg-light">
+                        <small class="text-muted text-uppercase fw-bold d-block mb-1"><i class="bi bi-building me-1"></i>Nhà Xuất Bản</small>
+                        <h6 class="fw-bold text-dark mb-1">@Model.TenNXB</h6>
+                        <small class="text-muted">Năm xuất bản: @(Model.NamXuatBan?.ToString() ?? "Chưa rõ")</small>
+                    </div>
+                </div>
+
+                <div class="col-sm-6">
+                    <div class="p-3 border rounded bg-light">
+                        <small class="text-muted text-uppercase fw-bold d-block mb-1"><i class="bi bi-shield-check me-1"></i>Quy Định Mượn Trả</small>
+                        <div class="small text-dark mt-1">
+                            • Tối đa: <strong>5 quyển / độc giả</strong><br>
+                            • Gia hạn: <strong>1 lần duy nhất</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(ViewBag.MoTaTheLoai))
+            {
+                <div class="mt-3 p-3 bg-light rounded border">
+                    <h6 class="fw-bold text-secondary mb-1"><i class="bi bi-card-text me-1"></i>Mô tả thể loại:</h6>
+                    <p class="mb-0 text-muted small">@ViewBag.MoTaTheLoai</p>
+                </div>
+            }
+        </div>
+
+        <!-- ================= BẢNG THÍ NGHIỆM ĐỌC TƯƠNG TRANH (2 TAB) ================= -->
+        <div class="card card-custom p-4 bg-light border-primary mb-4">
+            <h5 class="fw-bold text-primary d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-cpu-fill text-danger"></i>
+                <span>Thử Nghiệm Giao Tác Đọc Tương Tranh Trên Màn Hình Này (2 Tab)</span>
+            </h5>
+            <p class="small text-muted mb-3">
+                Sử dụng các nút dưới đây để kích hoạt giao tác Đọc từ Tab này khi Tab khác đang thực hiện sửa đổi giá sách:
+            </p>
+
+            <div class="row g-2">
+                <!-- Nút test Dirty Read T2 -->
+                <div class="col-sm-6">
+                    <div class="p-2 bg-white rounded border h-100">
+                        <strong class="small d-block text-danger mb-1">1. Đọc Bẩn (Dirty Read - Tab 2):</strong>
+                        <div class="d-flex gap-1">
+                            <a asp-action="Details" asp-route-id="@Model.MaSach" asp-route-readDemoMode="DirtyRead_T2_Loi" 
+                               class="btn btn-outline-danger btn-sm flex-fill" title="Đọc bẩn với READ UNCOMMITTED khi Tab 1 đang sửa giá chưa commit">
+                                Đọc Bẩn (Chưa Xử Lý)
+                            </a>
+                            <a asp-action="Details" asp-route-id="@Model.MaSach" asp-route-readDemoMode="DirtyRead_T2_KhacPhuc" 
+                               class="btn btn-outline-success btn-sm flex-fill" title="Đọc an toàn với READ COMMITTED (chờ Tab 1 kết thúc)">
+                                Đọc An Toàn
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nút test Unrepeatable Read T1 -->
+                <div class="col-sm-6">
+                    <div class="p-2 bg-white rounded border h-100">
+                        <strong class="small d-block text-primary mb-1">2. Đọc 2 Lần (Unrepeatable Read - Tab 1):</strong>
+                        <div class="d-flex gap-1">
+                            <a asp-action="Details" asp-route-id="@Model.MaSach" asp-route-readDemoMode="UnrepeatableRead_T1_Loi" asp-route-delaySec="5" 
+                               class="btn btn-outline-warning btn-sm flex-fill text-dark" title="Đọc lần 1 -> Delay 5s -> Đọc lần 2 (Tab 2 qua sửa giá)">
+                                Đọc 2 Lần (Bị Đổi Giá)
+                            </a>
+                            <a asp-action="Details" asp-route-id="@Model.MaSach" asp-route-readDemoMode="UnrepeatableRead_T1_KhacPhuc" asp-route-delaySec="5" 
+                               class="btn btn-outline-success btn-sm flex-fill" title="Khóa REPEATABLE READ đọc nhất quán">
+                                Đã Khắc Phục
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
