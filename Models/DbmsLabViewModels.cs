@@ -29,6 +29,31 @@ public class ConcurrencyResultViewModel
     public string DbmsBehavior { get; set; } = string.Empty;
 }
 
+public class DbmsLabSession
+{
+    public Guid SessionId { get; set; }
+    public string TransactionName { get; set; } = string.Empty;
+    public string ProblemType { get; set; } = string.Empty;
+    public string Mode { get; set; } = "Loi";
+    public int MaSach { get; set; }
+    public int MaTheLoai { get; set; }
+    public int DelaySeconds { get; set; }
+}
+
+public class DbmsLabStepRequest
+{
+    public Guid SessionId { get; set; }
+    public string Operation { get; set; } = string.Empty;
+}
+
+public class DbmsLabStepResponse
+{
+    public string Status { get; set; } = "Success";
+    public string Message { get; set; } = string.Empty;
+    public string? Value { get; set; }
+    public bool IsActive { get; set; }
+}
+
 public class ThongKeDayDuViewModel
 {
     public int TongSach { get; set; }
@@ -63,4 +88,3 @@ public class TopDocGiaViewModel
     public int TongLuotMuon { get; set; }
     public DateTime? LanMuonGanNhat { get; set; }
 }
-

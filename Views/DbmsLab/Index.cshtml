@@ -89,7 +89,10 @@
             <div class="col-lg-2 col-md-4 text-end">
                 <button id="btnRunParallel" class="btn btn-danger btn-lg w-100 shadow fw-bold d-flex align-items-center justify-content-center gap-2">
                     <i class="bi bi-play-circle-fill fs-5"></i>
-                    <span>CHẠY DEMO</span>
+                    <span>BẮT ĐẦU LAB</span>
+                </button>
+                <button id="btnRunLegacy" class="btn btn-outline-dark btn-sm w-100 mt-2">
+                    <i class="bi bi-lightning-charge me-1"></i>Chạy demo tự động cũ
                 </button>
             </div>
         </div>
@@ -121,8 +124,16 @@
                 <div class="p-3 bg-white rounded border mb-3 min-vh-25 shadow-sm">
                     <h6 class="text-muted small text-uppercase fw-bold"><i class="bi bi-terminal me-1"></i>Nhật ký thực thi T1:</h6>
                     <div id="logT1" class="font-monospace small" style="min-height: 120px; max-height: 200px; overflow-y: auto;">
-                        <span class="text-muted fst-italic">Chưa có dữ liệu. Hãy bấm nút 'CHẠY DEMO'.</span>
+                        <span class="text-muted fst-italic">Bấm BẮT ĐẦU LAB, sau đó tự chọn từng bước.</span>
                     </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button class="btn btn-outline-primary btn-sm btn-step" data-client="T1" data-operation="read">Đọc</button>
+                    <button class="btn btn-outline-primary btn-sm btn-step" data-client="T1" data-operation="update">Cập nhật</button>
+                    <button class="btn btn-outline-success btn-sm btn-step" data-client="T1" data-operation="lock-first">Khóa 1</button>
+                    <button class="btn btn-outline-success btn-sm btn-step" data-client="T1" data-operation="lock-second">Khóa 2</button>
+                    <button class="btn btn-success btn-sm btn-step" data-client="T1" data-operation="commit">Commit</button>
+                    <button class="btn btn-danger btn-sm btn-step" data-client="T1" data-operation="rollback">Rollback</button>
                 </div>
                 <div class="alert alert-light border mb-0">
                     <strong class="d-block small text-muted">Kết quả trả về cho Client 1:</strong>
@@ -149,8 +160,16 @@
                 <div class="p-3 bg-white rounded border mb-3 min-vh-25 shadow-sm">
                     <h6 class="text-muted small text-uppercase fw-bold"><i class="bi bi-terminal me-1"></i>Nhật ký thực thi T2:</h6>
                     <div id="logT2" class="font-monospace small" style="min-height: 120px; max-height: 200px; overflow-y: auto;">
-                        <span class="text-muted fst-italic">Chưa có dữ liệu. Hãy bấm nút 'CHẠY DEMO'.</span>
+                        <span class="text-muted fst-italic">Bấm BẮT ĐẦU LAB, sau đó tự chọn từng bước.</span>
                     </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button class="btn btn-outline-warning btn-sm btn-step" data-client="T2" data-operation="read">Đọc</button>
+                    <button class="btn btn-outline-warning btn-sm btn-step" data-client="T2" data-operation="update">Cập nhật</button>
+                    <button class="btn btn-outline-success btn-sm btn-step" data-client="T2" data-operation="lock-first">Khóa 1</button>
+                    <button class="btn btn-outline-success btn-sm btn-step" data-client="T2" data-operation="lock-second">Khóa 2</button>
+                    <button class="btn btn-success btn-sm btn-step" data-client="T2" data-operation="commit">Commit</button>
+                    <button class="btn btn-danger btn-sm btn-step" data-client="T2" data-operation="rollback">Rollback</button>
                 </div>
                 <div class="alert alert-light border mb-0">
                     <strong class="d-block small text-muted">Kết quả trả về cho Client 2:</strong>
@@ -296,80 +315,75 @@
         }
     });
 
+    const sessions = {};
+    function appendLog(client, message, status) {
+        const log = $(`#log${client}`);
+        log.append(`<div class="mb-1 ${status === 'Error' || status === 'Deadlock' ? 'text-danger' : ''}">[${new Date().toLocaleTimeString()}] ${message}</div>`);
+        log.scrollTop(log[0].scrollHeight);
+    }
+    function beginClient(client) {
+        return $.post('/DbmsLab/Begin', {
+            transactionName: client,
+            problemType: $('#selectProblem').val(),
+            mode: $('input[name="radioMode"]:checked').val(),
+            delaySeconds: $('#rangeDelay').val(),
+            maSach: $('#selectSach').val() || 1,
+            maTheLoai: $('#selectTheLoai').val() || 1
+        }).then(res => {
+            sessions[client] = res.sessionId;
+            $(`#statusBadge${client}`).removeClass().addClass('badge bg-success fs-6').text('Đang mở');
+            appendLog(client, 'Đã BEGIN và giữ kết nối trên máy chủ.');
+        });
+    }
     $('#btnRunParallel').on('click', function() {
-        const problem = $('#selectProblem').val();
-        const mode = $('input[name="radioMode"]:checked').val();
-        const delay = $('#rangeDelay').val();
-        const maSach = $('#selectSach').val() || 1;
-        const maTheLoai = $('#selectTheLoai').val() || 1;
-
-        // Reset UI
-        $('#statusBadgeT1').removeClass().addClass('badge bg-primary fs-6').html('<span class="spinner-border spinner-border-sm me-1"></span>Đang chạy...');
-        $('#statusBadgeT2').removeClass().addClass('badge bg-warning text-dark fs-6').html('<span class="spinner-border spinner-border-sm me-1"></span>Đang chờ chen ngang...');
-        $('#logT1').html('<div class="text-primary"><i class="bi bi-arrow-clockwise"></i> Đang khởi động T1...</div>');
-        $('#logT2').html('<div class="text-secondary"><i class="bi bi-hourglass-split"></i> Đang chờ tín hiệu T2...</div>');
-        $('#resultT1').html('<span class="text-muted">Đang xử lý...</span>');
-        $('#resultT2').html('<span class="text-muted">Đang xử lý...</span>');
+        Object.keys(sessions).forEach(key => delete sessions[key]);
+        $('#logT1, #logT2').empty();
+        $('#resultT1, #resultT2').text('-');
+        $('#timelineVisual').text('T1 và T2 đã sẵn sàng thao tác thủ công.');
         $('#btnRunParallel').prop('disabled', true);
-
+        $.when(beginClient('T1'), beginClient('T2')).always(() => $('#btnRunParallel').prop('disabled', false));
+    });
+    $('#btnRunLegacy').on('click', function() {
+        const button = $(this);
+        button.prop('disabled', true).text('Đang chạy demo cũ...');
+        $.post('/DbmsLab/RunSimulation', {
+            problemType: $('#selectProblem').val(),
+            mode: $('input[name="radioMode"]:checked').val(),
+            delaySec: $('#rangeDelay').val(),
+            maSach: $('#selectSach').val() || 1,
+            maTheLoai: $('#selectTheLoai').val() || 1
+        }).done(res => {
+            $('#logT1, #logT2').empty();
+            (res.logs || []).forEach(log => appendLog(log.transactionName === 'T2' ? 'T2' : 'T1', `${log.stepName}: ${log.detail || log.sqlExecuted}`, log.status));
+            $('#resultT1').text(res.t1Result || res.errorMessage || '-');
+            $('#resultT2').text(res.t2Result || res.errorMessage || '-');
+            $('#statusBadgeT1, #statusBadgeT2').removeClass().addClass('badge bg-success fs-6').text('Demo tự động xong');
+            $('#timelineVisual').text('Phiên bản cũ: T1 và T2 được tự động kích hoạt theo độ trễ.');
+        }).fail(xhr => appendLog('T1', xhr.responseText || 'Không chạy được demo cũ.', 'Error'))
+          .always(() => button.prop('disabled', false).html('<i class="bi bi-lightning-charge me-1"></i>Chạy demo tự động cũ'));
+    });
+    $('.btn-step').on('click', function() {
+        const client = $(this).data('client');
+        const operation = $(this).data('operation');
+        if (!sessions[client]) {
+            appendLog(client, 'Hãy bắt đầu lab trước.', 'Error');
+            return;
+        }
         $.ajax({
-            url: '/DbmsLab/RunSimulation',
+            url: '/DbmsLab/Step',
             type: 'POST',
-            data: {
-                problemType: problem,
-                mode: mode,
-                delaySec: delay,
-                maSach: maSach,
-                maTheLoai: maTheLoai
-            },
-            success: function(res) {
-                $('#btnRunParallel').prop('disabled', false);
-
-                // Render Logs
-                let logT1Html = '';
-                let logT2Html = '';
-                let timelineText = '';
-
-                if (res.logs && res.logs.length > 0) {
-                    res.logs.forEach((log, index) => {
-                        const time = new Date(log.timestamp).toLocaleTimeString();
-                        const line = `<div class="mb-1"><strong>[${time}]</strong> ${log.stepName}<br><span class="text-muted">${log.detail}</span><br><code class="text-dark">${log.sqlExecuted}</code></div>`;
-                        if (log.transactionName === 'T1' || log.transactionName === 'Hệ thống') {
-                            logT1Html += line;
-                        }
-                        if (log.transactionName === 'T2') {
-                            logT2Html += line;
-                        }
-                        timelineText += `[${time}] ${log.transactionName}: ${log.stepName}\n`;
-                    });
+            contentType: 'application/json',
+            data: JSON.stringify({ sessionId: sessions[client], operation }),
+            success: res => {
+                appendLog(client, res.message, res.status);
+                $(`#result${client}`).text(res.value || res.message);
+                if (!res.isActive) {
+                    $(`#statusBadge${client}`).removeClass().addClass(`badge ${res.status === 'Deadlock' ? 'bg-danger' : 'bg-secondary'} fs-6`).text(res.status === 'Deadlock' ? 'Deadlock victim' : 'Đã kết thúc');
+                    delete sessions[client];
                 }
-
-                $('#logT1').html(logT1Html || '<span class="text-success">Hoàn tất</span>');
-                $('#logT2').html(logT2Html || '<span class="text-success">Hoàn tất</span>');
-                $('#timelineVisual').text(timelineText);
-
-                // Results
-                $('#resultT1').html(res.t1Result ? `<span class="${res.t1Result.includes('LỖI') || res.t1Result.includes('DEADLOCK') ? 'text-danger' : 'text-success'}">${res.t1Result}</span>` : 'Thành công');
-                $('#resultT2').html(res.t2Result ? `<span class="${res.t2Result.includes('LỖI') || res.t2Result.includes('DEADLOCK') ? 'text-danger' : 'text-success'}">${res.t2Result}</span>` : 'Thành công');
-
-                $('#statusBadgeT1').removeClass().addClass(res.t1Result && res.t1Result.includes('DEADLOCK') ? 'badge bg-danger fs-6' : 'badge bg-success fs-6').text(res.t1Result && res.t1Result.includes('DEADLOCK') ? 'Bị Hủy (Victim)' : 'Hoàn tất');
-                $('#statusBadgeT2').removeClass().addClass(res.t2Result && res.t2Result.includes('DEADLOCK') ? 'badge bg-danger fs-6' : 'badge bg-success fs-6').text(res.t2Result && res.t2Result.includes('DEADLOCK') ? 'Bị Hủy (Victim)' : 'Hoàn tất');
-
-                // Metadata & Explanations
-                $('#lblIsolation').text(res.isolationLevelUsed);
-                $('#lblLocking').text(res.lockingHintUsed);
-                $('#boxExplanation').html(`<strong>${mode === 'Loi' ? '⚠️ TÌNH HUỐNG LỖI:' : '✅ CƠ CHẾ KHẮC PHỤC:'}</strong><p class="mb-0 mt-1">${res.explanation}</p>`);
-                $('#lblDbmsBehavior').text(res.dbmsBehavior);
             },
-            error: function(xhr, status, err) {
-                $('#btnRunParallel').prop('disabled', false);
-                $('#statusBadgeT1').removeClass().addClass('badge bg-danger fs-6').text('Lỗi');
-                $('#statusBadgeT2').removeClass().addClass('badge bg-danger fs-6').text('Lỗi');
-                $('#resultT1').text('Lỗi hệ thống: ' + err);
-                $('#resultT2').text('Lỗi hệ thống: ' + err);
-            }
+            error: xhr => appendLog(client, xhr.responseText || 'Lỗi khi thực hiện bước.', 'Error')
         });
     });
 </script>
 }
-
