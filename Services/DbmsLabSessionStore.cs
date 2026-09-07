@@ -34,6 +34,15 @@ public sealed class DbmsLabSessionStore : IDisposable
             };
             var transaction = (SqlTransaction)await connection.BeginTransactionAsync(isolation);
             var state = new SessionState(session, connection, transaction);
+            if (session.ProblemType == "DirtyRead")
+            {
+                await using var command = new SqlCommand(
+                    "SELECT GiaTien FROM dbo.SACH WHERE MaSach = @MaSach",
+                    connection, transaction);
+                command.Parameters.AddWithValue("@MaSach", session.MaSach);
+                var value = await command.ExecuteScalarAsync();
+                session.InitialPrice = value == DBNull.Value || value is null ? null : Convert.ToDecimal(value);
+            }
             _sessions.AddOrUpdate(session.SessionId, state, (_, old) =>
             {
                 old.Dispose();

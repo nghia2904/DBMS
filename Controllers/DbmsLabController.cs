@@ -37,7 +37,33 @@ public class DbmsLabController : Controller
 
         request.SessionId = Guid.NewGuid();
         var session = await _sessions.CreateAsync(request);
-        return Json(new { sessionId = session.Info.SessionId, transactionName = session.Info.TransactionName });
+        return Json(new
+        {
+            sessionId = session.Info.SessionId,
+            transactionName = session.Info.TransactionName,
+            initialPrice = session.Info.InitialPrice
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ResetDemoData(int maSach)
+    {
+        if (maSach <= 0)
+        {
+            return BadRequest("Mã sách không hợp lệ.");
+        }
+
+        var affected = await _db.ExecuteNonQueryAsync(
+            "UPDATE dbo.SACH SET GiaTien = @GiaTien WHERE MaSach = @MaSach",
+            new[]
+            {
+                new SqlParameter("@GiaTien", 20000m),
+                new SqlParameter("@MaSach", maSach)
+            });
+
+        return affected == 0
+            ? NotFound("Không tìm thấy sách để reset.")
+            : Json(new { message = "Đã reset giá sách về 20.000 đ." });
     }
 
     [HttpPost]
@@ -211,16 +237,20 @@ public class DbmsLabController : Controller
                     await command.ExecuteNonQueryAsync();
                     return Result($"Ghi SoLuong = {(session.LastQuantity ?? 0) - 1}.", session);
                 case ("DirtyRead", "update"):
+                    command.CommandText = "SELECT GiaTien FROM dbo.SACH WHERE MaSach = @MaSach";
+                    command.Parameters.AddWithValue("@MaSach", session.Info.MaSach);
+                    var oldPrice = await command.ExecuteScalarAsync();
+                    command.Parameters.Clear();
                     command.CommandText = "UPDATE dbo.SACH SET GiaTien = @GiaTien WHERE MaSach = @MaSach";
                     command.Parameters.AddWithValue("@MaSach", session.Info.MaSach);
                     command.Parameters.AddWithValue("@GiaTien", 250000m);
                     await command.ExecuteNonQueryAsync();
-                    return Result("Đã cập nhật giá tạm thời thành 250.000.", session);
+                    return Result($"Giá: {Convert.ToDecimal(oldPrice):N0} → 250.000 (chưa commit).", session);
                 case ("DirtyRead", "read"):
                     command.CommandText = "SELECT GiaTien FROM dbo.SACH WHERE MaSach = @MaSach";
                     command.Parameters.AddWithValue("@MaSach", session.Info.MaSach);
                     var dirtyPrice = await command.ExecuteScalarAsync();
-                    return Result($"Đọc GiaTien = {dirtyPrice}.", session);
+                    return Result($"T2 đọc được giá = {Convert.ToDecimal(dirtyPrice):N0}.", session);
                 case ("UnrepeatableRead", "read"):
                     command.CommandText = "SELECT GiaTien FROM dbo.SACH WHERE MaSach = @MaSach";
                     command.Parameters.AddWithValue("@MaSach", session.Info.MaSach);

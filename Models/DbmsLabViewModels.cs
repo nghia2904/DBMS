@@ -38,6 +38,7 @@ public class DbmsLabSession
     public int MaSach { get; set; }
     public int MaTheLoai { get; set; }
     public int DelaySeconds { get; set; }
+    public decimal? InitialPrice { get; set; }
 }
 
 public class DbmsLabStepRequest

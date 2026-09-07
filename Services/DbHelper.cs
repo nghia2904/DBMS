@@ -34,6 +34,18 @@ public class DbHelper
         return dt;
     }
 
+    public async Task<int> ExecuteNonQueryAsync(string sql, SqlParameter[]? parameters = null)
+    {
+        using var conn = GetConnection();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand(sql, conn);
+        if (parameters != null)
+        {
+            cmd.Parameters.AddRange(parameters);
+        }
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
     public static SqlParameter P(string name, object? value)
     {
         if (value is string s && string.IsNullOrWhiteSpace(s))
@@ -114,4 +126,3 @@ public class DbHelper
         return null;
     }
 }
-
