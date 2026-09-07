@@ -95,7 +95,7 @@
                     <i class="bi bi-lightning-charge me-1"></i>Chạy demo tự động cũ
                 </button>
                 <button id="btnResetDemo" class="btn btn-outline-secondary btn-sm w-100 mt-2">
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset giá về 20.000 đ
+                    <i class="bi bi-arrow-counterclockshake me-1"></i>Reset dữ liệu mẫu về ban đầu
                 </button>
             </div>
         </div>
@@ -104,6 +104,20 @@
         <div id="scenarioDescription" class="alert alert-info mt-3 mb-0 py-2 small d-flex align-items-center gap-2">
             <i class="bi bi-info-circle-fill fs-5"></i>
             <span id="descText">2 người dùng cùng mượn 1 cuốn sách khi chỉ còn 1 quyển. T1 đọc số lượng, delay 4s rồi trừ kho; T2 chen ngang đọc và trừ kho.</span>
+        </div>
+
+        <div id="stepGuide" class="alert alert-light border mt-3 mb-0 py-3 small">
+            <div class="fw-bold text-dark mb-2"><i class="bi bi-list-check me-1 text-primary"></i>Chuỗi thao tác step-by-step trên web:</div>
+            <ol class="mb-0 ps-3">
+                <li>T1: Begin Tran</li>
+                <li>T1: Read</li>
+                <li>T2: Begin Tran</li>
+                <li>T2: Read</li>
+                <li>T1: Update</li>
+                <li>T1: Commit</li>
+                <li>T2: Update</li>
+                <li>T2: Commit</li>
+            </ol>
         </div>
     </div>
 </div>
@@ -306,9 +320,127 @@
         "Deadlock": "T1 khóa Độc giả 1 rồi chờ khóa Sách 2. T2 khóa Sách 2 rồi chờ khóa Độc giả 1 -> SQL Server phát hiện chu trình Deadlock (Lỗi 1205) & Hủy 1 giao tác."
     };
 
-    $('#selectProblem').on('change', function() {
-        const val = $(this).val();
+    const stepSequences = {
+        "LostUpdate": {
+            "Loi": [
+                "T1: Begin Tran",
+                "T1: Read SoLuong",
+                "T2: Begin Tran",
+                "T2: Read SoLuong",
+                "T1: Update SoLuong = SoLuong - 1",
+                "T1: Commit",
+                "T2: Update SoLuong = SoLuong - 1",
+                "T2: Commit"
+            ],
+            "KhacPhuc": [
+                "T1: Begin Tran",
+                "T1: Read SoLuong WITH (UPDLOCK, HOLDLOCK)",
+                "T1: Update SoLuong = SoLuong - 1",
+                "T1: Commit",
+                "T2: Begin Tran",
+                "T2: Read SoLuong WITH (UPDLOCK, HOLDLOCK)",
+                "T2: chờ T1 commit",
+                "T2: Read lại rồi update nếu còn"
+            ]
+        },
+        "DirtyRead": {
+            "Loi": [
+                "T1: Begin Tran",
+                "T1: Update GiaTien = 250000",
+                "T2: SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED",
+                "T2: Read GiaTien",
+                "T1: Rollback"
+            ],
+            "KhacPhuc": [
+                "T1: Begin Tran",
+                "T1: Update GiaTien = 250000",
+                "T2: SET TRANSACTION ISOLATION LEVEL READ COMMITTED",
+                "T2: Read GiaTien (bị block)",
+                "T1: Commit hoặc Rollback",
+                "T2: Read lại và chỉ thấy giá thật"
+            ]
+        },
+        "UnrepeatableRead": {
+            "Loi": [
+                "T1: Begin Tran",
+                "T1: Read GiaTien lần 1",
+                "T2: Begin Tran",
+                "T2: Update GiaTien = 185000",
+                "T2: Commit",
+                "T1: Read GiaTien lần 2"
+            ],
+            "KhacPhuc": [
+                "T1: Begin Tran",
+                "T1: SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+                "T1: Read GiaTien lần 1",
+                "T2: Begin Tran",
+                "T2: Update GiaTien = 185000",
+                "T2: bị block",
+                "T1: Read GiaTien lần 2",
+                "T1: Commit"
+            ]
+        },
+        "PhantomRead": {
+            "Loi": [
+                "T1: Begin Tran",
+                "T1: SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+                "T1: Read COUNT(*) theo thể loại",
+                "T2: Begin Tran",
+                "T2: Insert 1 sách mới cùng thể loại",
+                "T2: Commit",
+                "T1: Read COUNT(*) lại"
+            ],
+            "KhacPhuc": [
+                "T1: Begin Tran",
+                "T1: SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+                "T1: Read COUNT(*) theo thể loại",
+                "T2: Begin Tran",
+                "T2: Insert sách mới cùng thể loại",
+                "T2: bị block",
+                "T1: Commit",
+                "T2: Insert lại sau"
+            ]
+        },
+        "Deadlock": {
+            "Loi": [
+                "T1: Begin Tran",
+                "T1: Update DOCGIA WITH (XLOCK)",
+                "T2: Begin Tran",
+                "T2: Update SACH WITH (XLOCK)",
+                "T1: Update SACH WITH (XLOCK)",
+                "T2: Update DOCGIA WITH (XLOCK)",
+                "SQL Server: phát hiện deadlock, chọn deadlock victim, Rollback"
+            ],
+            "KhacPhuc": [
+                "T1: Begin Tran",
+                "T1: Update DOCGIA WITH (XLOCK)",
+                "T1: Update SACH WITH (XLOCK)",
+                "T1: Commit",
+                "T2: Begin Tran",
+                "T2: Update DOCGIA WITH (XLOCK)",
+                "T2: Update SACH WITH (XLOCK)",
+                "T2: Commit"
+            ]
+        }
+    };
+
+    function renderStepGuide() {
+        const problemType = $('#selectProblem').val();
+        const mode = $('input[name="radioMode"]:checked').val() || 'Loi';
+        const steps = stepSequences[problemType]?.[mode] || ["T1: Begin Tran", "T2: Begin Tran", "T1: Read", "T2: Read"];
+
+        $('#stepGuide').html(`
+            <div class="fw-bold text-dark mb-2"><i class="bi bi-list-check me-1 text-primary"></i>Chuỗi thao tác step-by-step trên web:</div>
+            <ol class="mb-0 ps-3">
+                ${steps.map(step => `<li>${step}</li>`).join('')}
+            </ol>
+        `);
+    }
+
+    $('#selectProblem, input[name="radioMode"]').on('change', function() {
+        const val = $('#selectProblem').val();
         $('#descText').text(descriptions[val] || "");
+        renderStepGuide();
         if (val === 'PhantomRead') {
             $('#divChonSach').addClass('d-none');
             $('#divChonTheLoai').removeClass('d-none');
@@ -317,6 +449,16 @@
             $('#divChonTheLoai').addClass('d-none');
         }
     });
+
+    $.post('/DbmsLab/ResetDemoData', { maSach: 0 })
+        .done(res => {
+            appendLog('T1', res.message || 'Dữ liệu demo đã được khôi phục về trạng thái ban đầu.');
+            appendLog('T2', res.message || 'Dữ liệu demo đã được khôi phục về trạng thái ban đầu.');
+        })
+        .fail(xhr => {
+            appendLog('T1', xhr.responseText || 'Không thể khôi phục dữ liệu demo.', 'Error');
+            appendLog('T2', xhr.responseText || 'Không thể khôi phục dữ liệu demo.', 'Error');
+        });
 
     const sessions = {};
     function appendLog(client, message, status) {

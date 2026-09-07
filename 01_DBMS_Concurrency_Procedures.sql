@@ -9,6 +9,103 @@ USE [QuanLyThuVien];
 GO
 
 -- =========================================================================================
+-- 0. DỮ LIỆU MẪU DEMO VÀ RESET VỀ BAN ĐẦU
+-- Mục tiêu: mỗi lần mở lab đều có thể khôi phục dữ liệu mẫu về trạng thái gốc.
+-- =========================================================================================
+IF OBJECT_ID(N'dbo.DemoBaseline_SACH', N'U') IS NULL
+BEGIN
+    SELECT
+        MaSach,
+        TenSach,
+        ISBN,
+        NamXuatBan,
+        SoLuong,
+        GiaTien,
+        ViTriKe,
+        TrangThai,
+        MaTheLoai,
+        MaTacGia,
+        MaNXB
+    INTO dbo.DemoBaseline_SACH
+    FROM dbo.SACH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_ResetDemoLab
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF OBJECT_ID(N'dbo.DemoBaseline_SACH', N'U') IS NULL
+    BEGIN
+        SELECT
+            MaSach,
+            TenSach,
+            ISBN,
+            NamXuatBan,
+            SoLuong,
+            GiaTien,
+            ViTriKe,
+            TrangThai,
+            MaTheLoai,
+            MaTacGia,
+            MaNXB
+        INTO dbo.DemoBaseline_SACH
+        FROM dbo.SACH;
+    END;
+
+    UPDATE s
+    SET
+        s.TenSach = b.TenSach,
+        s.ISBN = b.ISBN,
+        s.NamXuatBan = b.NamXuatBan,
+        s.SoLuong = b.SoLuong,
+        s.GiaTien = b.GiaTien,
+        s.ViTriKe = b.ViTriKe,
+        s.TrangThai = b.TrangThai,
+        s.MaTheLoai = b.MaTheLoai,
+        s.MaTacGia = b.MaTacGia,
+        s.MaNXB = b.MaNXB
+    FROM dbo.SACH s
+    INNER JOIN dbo.DemoBaseline_SACH b
+        ON s.MaSach = b.MaSach;
+
+    DELETE s
+    FROM dbo.SACH s
+    WHERE NOT EXISTS (
+        SELECT 1 FROM dbo.DemoBaseline_SACH b WHERE b.MaSach = s.MaSach
+    );
+
+    INSERT INTO dbo.SACH (
+        TenSach,
+        ISBN,
+        NamXuatBan,
+        SoLuong,
+        GiaTien,
+        ViTriKe,
+        TrangThai,
+        MaTheLoai,
+        MaTacGia,
+        MaNXB)
+    SELECT
+        b.TenSach,
+        b.ISBN,
+        b.NamXuatBan,
+        b.SoLuong,
+        b.GiaTien,
+        b.ViTriKe,
+        b.TrangThai,
+        b.MaTheLoai,
+        b.MaTacGia,
+        b.MaNXB
+    FROM dbo.DemoBaseline_SACH b
+    WHERE NOT EXISTS (
+        SELECT 1 FROM dbo.SACH s WHERE s.MaSach = b.MaSach
+    );
+END;
+GO
+
+-- =========================================================================================
 -- 1. VẤN ĐỀ 1: LOST UPDATE (MẤT CẬP NHẬT)
 -- Tình huống: 2 Thủ thư / Độc giả cùng mượn 1 cuốn sách khi số lượng tồn kho chỉ còn 1.
 -- =========================================================================================

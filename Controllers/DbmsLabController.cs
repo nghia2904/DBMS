@@ -20,6 +20,9 @@ public class DbmsLabController : Controller
     [HttpGet]
     public async Task<IActionResult> Index()
     {
+        await EnsureDemoBaselineAsync();
+        await RestoreDemoBaselineAsync();
+
         ViewBag.SachList = await _db.ExecuteQueryAsync(
             "SELECT TOP 20 MaSach, TenSach, SoLuong, GiaTien FROM dbo.SACH ORDER BY MaSach");
         ViewBag.TheLoaiList = await _db.ExecuteQueryAsync(
@@ -48,22 +51,142 @@ public class DbmsLabController : Controller
     [HttpPost]
     public async Task<IActionResult> ResetDemoData(int maSach)
     {
-        if (maSach <= 0)
+        if (maSach < 0)
         {
             return BadRequest("Mã sách không hợp lệ.");
         }
 
-        var affected = await _db.ExecuteNonQueryAsync(
-            "UPDATE dbo.SACH SET GiaTien = @GiaTien WHERE MaSach = @MaSach",
-            new[]
-            {
-                new SqlParameter("@GiaTien", 20000m),
-                new SqlParameter("@MaSach", maSach)
-            });
+        await EnsureDemoBaselineAsync();
+        var affected = await RestoreDemoBaselineAsync();
 
-        return affected == 0
-            ? NotFound("Không tìm thấy sách để reset.")
-            : Json(new { message = "Đã reset giá sách về 20.000 đ." });
+        if (affected == 0)
+        {
+            return NotFound("Không tìm thấy dữ liệu demo gốc để reset.");
+        }
+
+        var selectedBook = maSach > 0 ? $" cho sách #{maSach}" : string.Empty;
+        return Json(new { message = $"Đã reset dữ liệu mẫu về trạng thái ban đầu{selectedBook}." });
+    }
+
+    private async Task EnsureDemoBaselineAsync()
+    {
+        const string sql = @"
+            IF OBJECT_ID(N'dbo.DemoBaseline_SACH', N'U') IS NULL
+            BEGIN
+                SELECT
+                    MaSach,
+                    TenSach,
+                    ISBN,
+                    NamXuatBan,
+                    SoLuong,
+                    GiaTien,
+                    ViTriKe,
+                    TrangThai,
+                    MaTheLoai,
+                    MaTacGia,
+                    MaNXB
+                INTO dbo.DemoBaseline_SACH
+                FROM dbo.SACH;
+            END
+            ELSE IF (SELECT COUNT(*) FROM dbo.DemoBaseline_SACH) = 0
+            BEGIN
+                INSERT INTO dbo.DemoBaseline_SACH (
+                    MaSach,
+                    TenSach,
+                    ISBN,
+                    NamXuatBan,
+                    SoLuong,
+                    GiaTien,
+                    ViTriKe,
+                    TrangThai,
+                    MaTheLoai,
+                    MaTacGia,
+                    MaNXB)
+                SELECT
+                    MaSach,
+                    TenSach,
+                    ISBN,
+                    NamXuatBan,
+                    SoLuong,
+                    GiaTien,
+                    ViTriKe,
+                    TrangThai,
+                    MaTheLoai,
+                    MaTacGia,
+                    MaNXB
+                FROM dbo.SACH;
+            END;";
+
+        await _db.ExecuteNonQueryAsync(sql);
+    }
+
+    private async Task<int> RestoreDemoBaselineAsync(int? maSach = null)
+    {
+        var whereClause = maSach.HasValue
+            ? "WHERE s.MaSach = @MaSach"
+            : string.Empty;
+
+        var paramList = maSach.HasValue
+            ? new[] { new SqlParameter("@MaSach", maSach.Value) }
+            : Array.Empty<SqlParameter>();
+
+        const string updateSql = @"
+            UPDATE s
+            SET
+                s.TenSach = b.TenSach,
+                s.ISBN = b.ISBN,
+                s.NamXuatBan = b.NamXuatBan,
+                s.SoLuong = b.SoLuong,
+                s.GiaTien = b.GiaTien,
+                s.ViTriKe = b.ViTriKe,
+                s.TrangThai = b.TrangThai,
+                s.MaTheLoai = b.MaTheLoai,
+                s.MaTacGia = b.MaTacGia,
+                s.MaNXB = b.MaNXB
+            FROM dbo.SACH s
+            INNER JOIN dbo.DemoBaseline_SACH b
+                ON s.MaSach = b.MaSach
+            {0};
+
+            DELETE s
+            FROM dbo.SACH s
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.DemoBaseline_SACH b
+                WHERE b.MaSach = s.MaSach
+            );
+
+            INSERT INTO dbo.SACH (
+                TenSach,
+                ISBN,
+                NamXuatBan,
+                SoLuong,
+                GiaTien,
+                ViTriKe,
+                TrangThai,
+                MaTheLoai,
+                MaTacGia,
+                MaNXB)
+            SELECT
+                b.TenSach,
+                b.ISBN,
+                b.NamXuatBan,
+                b.SoLuong,
+                b.GiaTien,
+                b.ViTriKe,
+                b.TrangThai,
+                b.MaTheLoai,
+                b.MaTacGia,
+                b.MaNXB
+            FROM dbo.DemoBaseline_SACH b
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.SACH s
+                WHERE s.MaSach = b.MaSach
+            );";
+
+        var finalSql = string.Format(updateSql, whereClause);
+        return await _db.ExecuteNonQueryAsync(finalSql, paramList);
     }
 
     [HttpPost]
